@@ -1,19 +1,7 @@
-use crate::{
-    core::{
-        engine::{Engine, EngineContext, Event},
-        types::EngineRef,
-    },
-    start_fn,
-};
+use macrograph::{start_fn, Engine, EngineContext, EngineRef};
 use rdev::{listen, EventType, Key as RDevKey};
-use serde_json::Map;
 
-use super::{key::Key, key_event::KeyEvent};
-
-const SHIFT_PRESSED: &str = "";
-const CTRL_PRESSED: &str = "";
-const ALT_PRESSED: &str = "";
-const META_PRESSED: &str = "";
+use crate::{key::Key, key_event::KeyEvent};
 
 async fn start(engine: EngineRef, ctx: EngineContext) {
     listen(move |event| {
@@ -25,7 +13,9 @@ async fn start(engine: EngineRef, ctx: EngineContext) {
                 match key {
                     RDevKey::ShiftLeft | RDevKey::ShiftRight => engine_state.shift_pressed = false,
                     RDevKey::MetaLeft | RDevKey::MetaRight => engine_state.meta_pressed = false,
-                    RDevKey::ControlLeft | RDevKey::ControlRight => engine_state.ctrl_pressed = false,
+                    RDevKey::ControlLeft | RDevKey::ControlRight => {
+                        engine_state.ctrl_pressed = false
+                    }
                     RDevKey::Alt => engine_state.alt_pressed = false,
                     _ => {}
                 };
@@ -48,7 +38,9 @@ async fn start(engine: EngineRef, ctx: EngineContext) {
                 match key {
                     RDevKey::ShiftLeft | RDevKey::ShiftRight => engine_state.shift_pressed = true,
                     RDevKey::MetaLeft | RDevKey::MetaRight => engine_state.meta_pressed = true,
-                    RDevKey::ControlLeft | RDevKey::ControlRight => engine_state.ctrl_pressed = true,
+                    RDevKey::ControlLeft | RDevKey::ControlRight => {
+                        engine_state.ctrl_pressed = true
+                    }
                     RDevKey::Alt => engine_state.alt_pressed = true,
                     _ => {}
                 };
@@ -69,7 +61,8 @@ async fn start(engine: EngineRef, ctx: EngineContext) {
             }
             _ => {}
         };
-    }).unwrap();
+    })
+    .unwrap();
 }
 
 pub struct State {

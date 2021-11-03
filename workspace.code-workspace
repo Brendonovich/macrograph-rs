@@ -1,0 +1,24 @@
+{
+  "folders": [
+    {
+      "path": "core"
+    },
+    {
+      "path": "packages"
+    },
+    {
+      "path": "app"
+    },
+    {
+      "name": "src-tauri",
+      "path": "app/src-tauri"
+    },
+    {
+      "name": "root",
+      "path": "./"
+    }
+  ],
+  "settings": {
+    "rust-analyzer.diagnostics.disabled": ["unresolved-macro-call"]
+  }
+}

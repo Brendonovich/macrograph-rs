@@ -1,12 +1,4 @@
-use crate::{
-    core::{
-        package::Package,
-        schema::NodeSchema,
-        value::{Value},
-    },
-    exec_fn,
-};
-use crate::core::io::DataInput;
+use macrograph::{exec_fn, DataInput, NodeSchema, Package, Value};
 
 pub fn create_package() -> Package {
     let mut package = Package::new("utils");

@@ -1,6 +1,6 @@
 use std::sync::{Mutex, Arc};
-use crate::core::value::Value;
-use crate::core::types::NodeRef;
+use crate::value::Value;
+use crate::types::NodeRef;
 
 pub struct DataInput {
   pub name: String,

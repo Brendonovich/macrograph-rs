@@ -1,13 +1,12 @@
 pub mod engine;
 pub mod key_event;
 pub mod key;
-mod utils;
 mod types;
 
-use crate::{core::{package::Package, schema::NodeSchema}, packages::keyboard::key_event::KeyEvent};
+use macrograph::{package::Package, schema::NodeSchema, io::{DataOutput, ExecOutput}};
 
 use self::engine::{setup_engine};
-use crate::core::io::{Output, DataOutput, ExecOutput};
+use key_event::{KeyEvent};
 
 pub fn create_package() -> Package {
   let mut package = Package::new("keyboard");

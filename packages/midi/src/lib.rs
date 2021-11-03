@@ -1,10 +1,6 @@
-use crate::core::package::Package;
-use crate::core::schema::NodeSchema;
-use crate::exec_fn;
+use macrograph::{exec_fn, DataOutput, NodeSchema, Package};
 
-use midir::MidiOutput;
-use crate::packages::midi::engine::{setup_engine, EngineState};
-use crate::core::io::DataOutput;
+use engine::{setup_engine, EngineState};
 
 mod engine;
 
@@ -25,10 +21,12 @@ pub fn create_package() -> Package {
 
             let name: String = match ports.get(0) {
                 Some(p) => state.output.port_name(p).unwrap_or("".into()),
-                None => "".into()
+                None => "".into(),
             };
 
-            node.find_data_output("output").unwrap().set_value(name.into());
+            node.find_data_output("output")
+                .unwrap()
+                .set_value(name.into());
 
             node.find_exec_output("execute")
         }),
