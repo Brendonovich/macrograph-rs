@@ -1,20 +1,51 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    hash::Hash,
+    sync::{Arc, Mutex},
+};
 
-use crate::{io::*, types::*};
+use serde::{Serialize, Deserialize};
+use ts_rs::TS;
+
+use crate::{io::*, types::*, Value};
+
+#[derive(TS, Serialize, Deserialize, Debug)]
+#[ts(export)]
+pub struct Position {
+    x: f64,
+    y: f64,
+}
 
 pub struct Node {
     pub id: i32,
+    pub name: String,
+    pub position: Position,
     pub schema: NodeSchemaRef,
     pub inputs: Mutex<Vec<Input>>,
     pub outputs: Mutex<Vec<Output>>,
 }
 
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for Node {}
+
+impl Hash for Node {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
 impl Node {
-    pub(crate) fn new(id: i32, schema: &NodeSchemaRef) -> NodeRef {
+    pub(crate) fn new(id: i32, schema: &NodeSchemaRef, position: Position) -> NodeRef {
         let schema = schema.clone();
 
         let node = Arc::new(Self {
             id,
+            position,
+            name: schema.name.to_string(),
             schema: schema.clone(),
             inputs: Mutex::new(vec![]),
             outputs: Mutex::new(vec![]),
@@ -25,12 +56,24 @@ impl Node {
         node
     }
 
+    pub fn dispose(&self) {
+        let mut outputs = self.outputs.lock().unwrap();
+        let mut inputs = self.inputs.lock().unwrap();
+
+        for output in outputs.iter_mut() {
+            output.disconnect();
+        }
+
+        outputs.clear();
+        inputs.clear();
+    }
+
     pub fn find_input(&self, name: &str) -> Option<Input> {
         self.inputs
             .lock()
             .unwrap()
             .iter()
-            .find(|i| i.get_name() == name)
+            .find(|i| i.get_id() == name)
             .map(|i| i.clone())
     }
 
@@ -39,7 +82,7 @@ impl Node {
             .lock()
             .unwrap()
             .iter()
-            .find(|o| o.get_name() == name)
+            .find(|o| o.get_id() == name)
             .map(|o| o.clone())
     }
 
@@ -110,26 +153,35 @@ impl Node {
             .unwrap()
             .push(Output::Exec(Arc::new(output)));
     }
+
+    /* Value Getters */
+    pub fn get_bool(&self, input: &str) -> Option<bool> {
+        self.find_data_input(input)
+            .and_then(|o| o.get_value().as_bool())
+    }
+
+    // pub fn get_int(&self, input: &str) -> Option<i64> {
+    //     self.find_data_input(input)
+    //         .and_then(|o| o.get_value().as_int())
+    // }
+
+    // pub fn get_float(&self, input: &str) -> Option<f64> {
+    //     self.find_data_input(input)
+    //         .and_then(|o| o.get_value().as_float())
+    // }
+
+    pub fn get_string(&self, input: &str) -> Option<String> {
+        self.find_data_input(input)
+            .and_then(|i| i.get_value().as_string())
+    }
+
+    pub fn set_output(&self, output: &str, value: Value) {
+        self.find_data_output(output).map(|o| o.set_value(value));
+    }
 }
 
-#[cfg(test)]
-mod test {
-    // use super::Node;
-    //
-    // use crate::{
-    //     core::schema::{ExecuteFn, NodeSchema},
-    //     exec_fn,
-    // };
-
-    // #[tokio::test]
-    // async fn can_execute_node_schema() {
-    //     let schema = NodeSchema::new_exec("test", |_n| {}, exec_fn!(|_n, _c| async { None }));
-    //     let node = Node::new(0, &schema);
-    //
-    //     if let NodeSchema::Exec(schema) = &*schema {
-    //         if let ExecuteFn::Async(func) = schema.execute {
-    //             assert_eq!(func(node.clone()).await, 0)
-    //         }
-    //     }
-    // }
+impl Drop for Node {
+    fn drop(&mut self) {
+        println!("dropping node")
+    }
 }

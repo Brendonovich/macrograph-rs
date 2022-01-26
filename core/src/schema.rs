@@ -1,94 +1,106 @@
-use crate::{types::*, ExecInput, ExecOutput};
+use std::{ops::Deref, sync::Weak};
+use tokio::sync::Mutex;
+
+use weak_table::WeakHashSet;
+
+use crate::{types::*, ExecInput, ExecOutput, Node};
 
 pub struct ExecuteContext {
     pub engine: Option<EngineRef>,
 }
 
-pub enum ExecuteFn {
-    Sync(SyncExecuteFn),
-    Async(AsyncExecuteFn),
+pub enum NodeSchemaType {
+    Base { execute: ExecuteFn },
+    Exec { execute: ExecuteFn },
+    Event { fire: FireFn },
 }
 
-impl From<SyncExecuteFn> for ExecuteFn {
-    fn from(func: SyncExecuteFn) -> Self {
-        Self::Sync(func)
+pub struct NodeSchema {
+    pub id: String,
+    pub name: String,
+    pub package: String,
+    pub build: BuildFn,
+    pub instances: Mutex<WeakHashSet<Weak<Node>>>,
+    pub inner: NodeSchemaType,
+}
+
+impl Deref for NodeSchema {
+    type Target = NodeSchemaType;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
-}
-
-impl From<AsyncExecuteFn> for ExecuteFn {
-    fn from(func: AsyncExecuteFn) -> Self {
-        Self::Async(func)
-    }
-}
-
-pub enum NodeSchema {
-    Exec(ExecNodeSchema),
-    Event(EventNodeSchema),
 }
 
 impl NodeSchema {
-    pub fn new_exec(id: &str, build: BuildFn, execute: ExecuteFn) -> Self {
-        NodeSchema::Exec(ExecNodeSchema {
+    pub fn new_exec(id: &str, name: &str, build: BuildFn, execute: ExecuteFn) -> Self {
+        Self {
             id: id.into(),
+            name: name.into(),
             build,
-            execute,
             package: String::new(),
-        })
+            inner: NodeSchemaType::Exec { execute },
+            instances: Mutex::new(WeakHashSet::new()),
+        }
     }
 
-    pub fn new_event(id: &str, build: BuildFn, fire: FireFn) -> Self {
-        NodeSchema::Event(EventNodeSchema {
+    pub fn new_base(id: &str, name: &str, build: BuildFn, execute: ExecuteFn) -> Self {
+        Self {
             id: id.into(),
+            name: name.into(),
             build,
-            fire,
             package: String::new(),
-        })
+            inner: NodeSchemaType::Base { execute },
+            instances: Mutex::new(WeakHashSet::new()),
+        }
     }
 
-    pub fn get_id(&self) -> &str {
-        match self {
-            NodeSchema::Exec(schema) => &schema.id,
-            NodeSchema::Event(schema) => &schema.id,
+    pub fn new_event(id: &str, name: &str, build: BuildFn, fire: FireFn) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            build,
+            package: String::new(),
+            inner: NodeSchemaType::Event { fire },
+            instances: Mutex::new(WeakHashSet::new()),
         }
     }
 
     pub fn build(&self, node: NodeRef) {
-        match self {
-            NodeSchema::Exec(schema) => {
-                node.add_exec_input(ExecInput::new("execute", &node));
-                node.add_exec_output(ExecOutput::new("execute"));
-                (schema.build)(node)
+        use NodeSchemaType::*;
+
+        match **self {
+            Exec { .. } => {
+                node.add_exec_input(ExecInput::new("execute", "", &node));
+                node.add_exec_output(ExecOutput::new("execute", ""));
             }
-            NodeSchema::Event(schema) => (schema.build)(node),
+            _ => {}
         }
+
+        (self.build)(node);
     }
-}
-
-pub struct ExecNodeSchema {
-    pub id: String,
-    pub package: String,
-    pub build: BuildFn,
-    pub execute: ExecuteFn,
-}
-
-pub struct EventNodeSchema {
-    pub id: String,
-    pub package: String,
-    pub build: BuildFn,
-    pub fire: FireFn,
 }
 
 #[macro_export]
 macro_rules! exec_fn {
-  (|$t:ident, $core:ident| $body:block) => {{
-    $crate::schema::ExecuteFn::Sync(|$t, $core| $body)
-  }};
-  (|$t:ident| $body:block) => {{
-    $crate::schema::ExecuteFn::Sync(|$t, _| $body)
-  }};
   (|$t:ident, $core:ident| async $($body:tt)*) => {{
-    $crate::schema::ExecuteFn::Async(|$t, $core| Box::pin(async move {
+    |$t, $core| Box::pin(async move {
       async $($body)*.await
-    }))
+    })
+  }};
+  (|$t:ident| async $($body:tt)*) => {{
+    |$t, _| Box::pin(async move {
+      async $($body)*.await
+    })
+  }};
+  (|$t:ident, $core:ident|  $($body:tt)*) => {{
+    |$t, $core| Box::pin(async move {
+      $($body)*
+    })
+  }};
+  (|$t:ident| $($body:tt)*) => {{
+    |$t, _| Box::pin(async move {
+      $($body)*
+    })
   }};
 }

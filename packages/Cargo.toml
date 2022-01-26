@@ -1,15 +1,15 @@
 [package]
 name = "macrograph-packages"
 version = "0.0.0"
-edition = "2021"
 
 [lib]
 name = "macrograph_packages"
 path = "lib.rs"
 
 [dependencies]
-macrograph = { path = "../core" }
-
-macrograph-pkg-keyboard = { path = "./keyboard"}
-macrograph-pkg-midi = { path = "./midi"}
-macrograph-pkg-utils = { path = "./utils"}
+macrograph-core = { path = "../core" }
+mg-pkg-logic = { path = "./logic" }
+mg-pkg-keyboard = { path = "./keyboard" }
+mg-pkg-midi = { path = "./midi" }
+mg-pkg-utils = { path = "./utils" }
+mg-pkg-obs = { path = "./obs" }

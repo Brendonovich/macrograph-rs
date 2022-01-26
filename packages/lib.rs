@@ -1,9 +1,7 @@
-use macrograph::Package;
-
-pub fn create_packages() -> Vec<Package> {
-    vec![
-        macrograph_pkg_keyboard::create_package(),
-        macrograph_pkg_midi::create_package(),
-        macrograph_pkg_utils::create_package(),
-    ]
+pub fn register_packages(core: &mut macrograph_core::Core) {
+    core.register_package(mg_pkg_keyboard::create_package());
+    core.register_package(mg_pkg_logic::create_package());
+    core.register_package(mg_pkg_midi::create_package());
+    core.register_package(mg_pkg_utils::create_package());
+    core.register_package(mg_pkg_obs::create_package());
 }

@@ -1,3 +1,6 @@
 /target
 Cargo.lock
 .idea/
+target/
+node_modules
+.DS_Store

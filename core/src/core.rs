@@ -1,49 +1,35 @@
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::HashMap;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-
+use crate::api::{Request, Response};
+use crate::node::Position;
+use crate::schema::NodeSchemaType;
 use crate::{
-    EngineContext, Event, ExecuteContext, ExecuteFn, ExecuteOutput, Graph, Input, NodeRef,
-    NodeSchema, Output, Package,
+    EngineContext, Event, ExecuteContext, ExecuteOutput, Graph, Input, NodeRef, Output, Package,
 };
+use serde_json::Value;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::oneshot;
 
 pub struct Core {
     pub graph: Graph,
     pub packages: Vec<Package>,
-    pub request_channel: (UnboundedSender<Request>, UnboundedReceiver<Request>),
-    pub event_map: HashMap<(String, String), Vec<NodeRef>>,
+    request_channel: (
+        UnboundedSender<WrappedRequest>,
+        UnboundedReceiver<WrappedRequest>,
+    ),
+    event_channel: (UnboundedSender<Event>, UnboundedReceiver<Event>),
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
-pub enum RequestData {
-    Event(Event),
-    CreateNode {
-        package: String,
-        schema: String,
-    },
-    ConnectIO {
-        input_node: i32,
-        input: String,
-        output_node: i32,
-        output: String,
-    },
-    Stop,
+struct WrappedRequest {
+    inner: Request,
+    sender: oneshot::Sender<Response>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
-pub enum ResponseData {
-    NodeCreated,
-}
-
-pub struct Request {
-    pub id: i32,
-    pub data: RequestData,
-}
-
-pub struct Response {
-    pub id: i32,
-    pub data: ResponseData,
+impl WrappedRequest {
+    fn new(request: Request, sender: oneshot::Sender<Response>) -> Self {
+        Self {
+            inner: request,
+            sender,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -52,13 +38,30 @@ pub enum ConnectIOError {
     InvalidIO { input: bool, output: bool },
 }
 
+pub struct CoreController {
+    request_sender: UnboundedSender<WrappedRequest>,
+}
+
+impl CoreController {
+    pub async fn send(&self, request: Request) -> Response {
+        let (sender, recv) = oneshot::channel();
+        let wrapped = WrappedRequest::new(request, sender);
+
+        self.request_sender.send(wrapped);
+
+        let resp = recv.await;
+
+        resp.unwrap()
+    }
+}
+
 impl Core {
     pub fn new() -> Self {
         Self {
             graph: Graph::new(),
             packages: vec![],
             request_channel: unbounded_channel(),
-            event_map: HashMap::new(),
+            event_channel: unbounded_channel(),
         }
     }
 
@@ -70,26 +73,43 @@ impl Core {
         self.packages.iter().find(|p| p.name == name)
     }
 
+    pub fn package_mut(&mut self, name: &str) -> Option<&mut Package> {
+        self.packages.iter_mut().find(|p| p.name == name)
+    }
+
     pub async fn start_engines(&self) {
         for package in &self.packages {
-            if let Some(engine) = &package.engine {
-                let start = engine.clone().lock().unwrap().start;
+            if let Some(engine_arc) = &package.engine {
+                let engine = engine_arc.lock().await;
+                let run = engine.run;
 
-                start(
-                    engine.clone(),
-                    EngineContext::new(&package.name, &self.request_channel.0),
-                )
-                .await;
+                tokio::spawn(run(
+                    engine_arc.clone(),
+                    EngineContext::new(&package.name, &self.event_channel.0),
+                ));
             }
         }
     }
 
-    pub(crate) async fn process_request(&mut self, data: RequestData) {
-        use RequestData::*;
+    async fn process_request(&mut self, request: WrappedRequest) {
+        use Request::*;
 
-        match data {
-            CreateNode { package, schema } => {
-                self.create_node(&package, &schema);
+        let res = match request.inner {
+            CreateNode {
+                package,
+                schema,
+                position,
+            } => {
+                let node = self.create_node(&package, &schema, position).await.unwrap();
+                let inputs = node.inputs.lock().unwrap();
+                let outputs = node.outputs.lock().unwrap();
+
+                Response::CreateNode {
+                    id: node.id,
+                    name: node.name.clone(),
+                    inputs: inputs.iter().map(|i| i.into()).collect(),
+                    outputs: outputs.iter().map(|o| o.into()).collect(),
+                }
             }
             ConnectIO {
                 output_node,
@@ -97,34 +117,54 @@ impl Core {
                 input_node,
                 input,
             } => {
-                self.connect_io(output_node, &output, input_node, &input);
+                self.connect_io(output_node, &output, input_node, &input)
+                    .unwrap();
+
+                Response::ConnectIO
             }
-            Event(event) => {
-                self.handle_event(event).await;
+            DisconnectIO { node, id, is_input } => {
+                self.disconnect_io(node, &id, is_input).unwrap();
+
+                Response::DisconnectIO
             }
-            Stop => {
-                // self.graph.stop();
+            SetDefaultValue { node, input, value } => {
+                let input = self
+                    .graph
+                    .node(node)
+                    .unwrap()
+                    .find_data_input(&input)
+                    .unwrap();
+
+                input.set_default_value(value);
+
+                Response::SetDefaultValue
             }
-            _ => {}
+            GetPackages => Response::GetPackages {
+                packages: self.packages.iter().map(|p| p.into()).collect(),
+            },
+            Reset => {
+                self.graph.reset();
+                Response::Reset
+            }
         };
+
+        request.sender.send(res);
     }
 
-    pub fn create_node(&mut self, package: &str, schema: &str) -> Option<NodeRef> {
-        let schema = self.package(&package).and_then(|p| p.schema(&schema));
+    pub async fn create_node(
+        &mut self,
+        package: &str,
+        schema: &str,
+        position: Position,
+    ) -> Option<NodeRef> {
+        let schema = self.package(&package).unwrap().schema(&schema); //and_then(|p| p.schema(&schema));
 
         if let Some(schema) = schema {
             let schema = schema.clone();
+            let node = self.graph.create_node(&schema, position);
+            let mut instances = schema.instances.lock().await;
 
-            let node = self.graph.create_node(&schema);
-
-            if let NodeSchema::Event(schema) = &*schema {
-                let listeners = self
-                    .event_map
-                    .entry((schema.package.clone(), schema.id.clone()))
-                    .or_insert(vec![]);
-
-                listeners.push(node.clone());
-            }
+            instances.insert(node.clone());
 
             return Some(node);
         }
@@ -140,7 +180,6 @@ impl Core {
         input: &str,
     ) -> Result<(), ConnectIOError> {
         let output_node = self.graph.node(output_node);
-
         let input_node = self.graph.node(input_node);
 
         let (output_node, input_node) = match (output_node, input_node) {
@@ -149,7 +188,7 @@ impl Core {
                 return Err(ConnectIOError::InvalidNodes {
                     input: input.is_none(),
                     output: output.is_none(),
-                })
+                });
             }
         };
 
@@ -162,7 +201,7 @@ impl Core {
                 return Err(ConnectIOError::InvalidIO {
                     input: input.is_none(),
                     output: output.is_none(),
-                })
+                });
             }
         };
 
@@ -181,21 +220,60 @@ impl Core {
         Ok(())
     }
 
+    pub fn disconnect_io(&mut self, node: i32, io: &str, is_input: bool) -> Result<(), ()> {
+        let node = self.graph.node(node);
+
+        let node = match node {
+            Some(node) => node,
+            None => return Err(()),
+        };
+
+        match is_input {
+            true => {
+                let input = node.find_input(io);
+
+                match input {
+                    Some(input) => {
+                        input.disconnect();
+                    }
+                    None => return Err(()),
+                }
+            }
+            false => {
+                let output = node.find_output(io);
+
+                match output {
+                    Some(output) => {
+                        output.disconnect();
+                    }
+                    None => return Err(()),
+                }
+            }
+        };
+
+        Ok(())
+    }
+
     pub async fn start(&mut self) {
         loop {
-            let event = self.request_channel.1.recv().await.unwrap();
-
-            self.process_request(event.data).await;
+            tokio::select! {
+                Some(request) = self.request_channel.1.recv() => {
+                    self.process_request(request).await;
+                }
+                Some(event) = self.event_channel.1.recv() => {
+                    self.handle_event(event).await;
+                }
+            }
         }
     }
 
     pub async fn handle_event(&self, event: Event) {
-        let listeners = self
-            .event_map
-            .get(&(event.package.clone(), event.event.clone()));
+        let schema = self.package(&event.package).unwrap().schema(&event.event);
 
-        if let Some(listeners) = listeners {
-            let futures: Vec<_> = listeners
+        if let Some(schema) = schema {
+            let nodes = schema.instances.lock().await;
+
+            let futures: Vec<_> = nodes
                 .iter()
                 .map(|node| self.fire_node(node.id, &event.data))
                 .collect();
@@ -208,8 +286,8 @@ impl Core {
         for input in node.inputs.lock().unwrap().iter() {
             if let Input::Data(input) = input {
                 if let Some(output) = &*input.connected_output.lock().unwrap() {
-                    match &*output.node.schema {
-                        NodeSchema::Exec(_) | NodeSchema::Event(_) => {
+                    match **output.node.schema {
+                        NodeSchemaType::Exec { .. } | NodeSchemaType::Event { .. } => {
                             input.set_value(output.get_value())
                         }
                         _ => {}
@@ -220,29 +298,27 @@ impl Core {
             }
         }
 
-        if let NodeSchema::Exec(schema) = &*node.schema {
-            let engine = self.package(&schema.package).unwrap().engine.clone();
+        let execute = match &**node.schema {
+            NodeSchemaType::Exec { execute } => execute,
+            NodeSchemaType::Base { execute } => execute,
+            _ => return None,
+        };
 
-            let context = ExecuteContext { engine };
+        let engine = self.package(&node.schema.package).unwrap().engine.clone();
+        let context = ExecuteContext { engine };
 
-            match &schema.execute {
-                ExecuteFn::Sync(func) => (func)(node.clone(), context),
-                ExecuteFn::Async(func) => (func)(node.clone(), context).await,
-            }
-        } else {
-            None
-        }
+        (execute)(node.clone(), context).await
     }
 
     pub(crate) async fn fire_node(&self, node_id: i32, data: &Value) {
         let node = self.graph.nodes.get(&node_id).unwrap();
 
-        let schema = match &*node.schema {
-            NodeSchema::Event(schema) => schema,
+        let fire = match &**node.schema {
+            NodeSchemaType::Event { fire } => fire,
             _ => return,
         };
 
-        let res = (schema.fire)(node.clone(), data.clone());
+        let res = (fire)(node.clone(), data.clone());
 
         let mut next_node_mut = res
             .and_then(|o| o.connected_input.lock().unwrap().clone())
@@ -260,6 +336,12 @@ impl Core {
                     .map(|i| i.node.clone()),
                 None => None,
             };
+        }
+    }
+
+    pub fn get_controller(&self) -> CoreController {
+        CoreController {
+            request_sender: self.request_channel.0.clone(),
         }
     }
 }

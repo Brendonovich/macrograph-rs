@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::any::Any;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{EngineRef, Request, RequestData};
+use crate::EngineRef;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Event {
@@ -24,23 +24,20 @@ impl Event {
 }
 
 pub struct EngineContext {
-    pub event_channel: UnboundedSender<Request>,
+    pub event_channel: UnboundedSender<Event>,
     package: String,
 }
 
 impl EngineContext {
     pub fn send(&self, event: &str, data: Value) {
-        self.event_channel.send(Request {
-            id: -1,
-            data: RequestData::Event(Event {
-                package: self.package.clone(),
-                event: event.to_string(),
-                data,
-            }),
+        self.event_channel.send(Event {
+            package: self.package.clone(),
+            event: event.to_string(),
+            data,
         });
     }
 
-    pub fn new(package: &str, channel: &UnboundedSender<Request>) -> Self {
+    pub fn new(package: &str, channel: &UnboundedSender<Event>) -> Self {
         Self {
             package: package.to_string(),
             event_channel: channel.clone(),
@@ -49,24 +46,24 @@ impl EngineContext {
 }
 
 #[macro_export]
-macro_rules! start_fn {
+macro_rules! run_fn {
     ($name:ident) => {
         |e, ctx| Box::pin($name(e, ctx))
     };
 }
 
-type StartFn = fn(engine: EngineRef, ctx: EngineContext) -> BoxFuture<'static, ()>;
+type RunFn = fn(engine: EngineRef, ctx: EngineContext) -> BoxFuture<'static, ()>;
 
 pub struct Engine {
     state: Box<dyn Any + Send>,
-    pub start: StartFn,
+    pub run: RunFn,
 }
 
 impl Engine {
-    pub fn new<S: 'static + Send>(state: S, start: StartFn) -> Self {
+    pub fn new<S: 'static + Send>(state: S, run: RunFn) -> Self {
         Self {
             state: Box::new(state),
-            start,
+            run,
         }
     }
 

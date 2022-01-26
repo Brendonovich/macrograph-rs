@@ -1,3 +1,4 @@
+pub mod api;
 pub mod core;
 pub mod engine;
 pub mod graph;
@@ -8,12 +9,12 @@ pub mod schema;
 pub mod types;
 pub mod value;
 
-pub use crate::core::{Core, Request, RequestData};
+pub use crate::core::Core;
 pub use engine::{Engine, EngineContext, Event};
+pub use graph::Graph;
 pub use io::{DataInput, DataOutput, ExecInput, ExecOutput, Input, Output};
 pub use node::Node;
 pub use package::Package;
-pub use schema::{ExecuteContext, ExecuteFn, NodeSchema};
+pub use schema::{ExecuteContext, NodeSchema};
 pub use types::*;
 pub use value::Value;
-pub use graph::Graph;

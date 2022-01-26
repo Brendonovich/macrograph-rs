@@ -1,4 +1,4 @@
-use macrograph::{start_fn, Engine, EngineContext, EngineRef};
+use macrograph_core::{run_fn, Engine, EngineContext, EngineRef};
 use midir::{MidiInput, MidiOutput};
 
 async fn start(_: EngineRef, _: EngineContext) {
@@ -17,6 +17,6 @@ pub fn setup_engine() -> Engine {
             input: MidiInput::new("Macrograph Input").unwrap(),
             output: MidiOutput::new("Macrograph Output").unwrap(),
         },
-        start_fn!(start),
+        run_fn!(start),
     )
 }

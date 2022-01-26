@@ -1,0 +1,4 @@
+{
+  "name": "@macrograph/root",
+  "main": "bindings/*"
+}

@@ -1,5 +1,5 @@
 [package]
-name = "macrograph-pkg-midi"
+name = "mg-pkg-midi"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 midir = "0.7.0"
-macrograph = { path = "../../core" }
+macrograph-core = { path = "../../core" }

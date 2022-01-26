@@ -1,4 +1,6 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
 
 use crate::{Engine, EngineRef, NodeSchema, NodeSchemaRef};
 
@@ -18,11 +20,7 @@ impl Package {
     }
 
     pub fn add_schema(&mut self, mut schema: NodeSchema) {
-        match schema {
-            NodeSchema::Event(ref mut schema) => schema.package = self.name.to_string(),
-            NodeSchema::Exec(ref mut schema) => schema.package = self.name.to_string(),
-        };
-
+        schema.package = self.name.to_string();
         self.schemas.push(Arc::new(schema));
     }
 
@@ -31,6 +29,10 @@ impl Package {
     }
 
     pub fn schema(&self, name: &str) -> Option<&NodeSchemaRef> {
-        self.schemas.iter().find(|s| s.get_id() == name)
+        self.schemas.iter().find(|s| s.id == name)
+    }
+
+    pub fn schema_mut(&mut self, name: &str) -> Option<&mut NodeSchemaRef> {
+        self.schemas.iter_mut().find(|s| s.id == name)
     }
 }

@@ -7,11 +7,11 @@
       "path": "packages"
     },
     {
-      "path": "app"
-    },
-    {
       "name": "src-tauri",
       "path": "app/src-tauri"
+    },
+    {
+      "path": "app"
     },
     {
       "name": "root",
@@ -19,6 +19,17 @@
     }
   ],
   "settings": {
-    "rust-analyzer.diagnostics.disabled": ["unresolved-macro-call"]
+    "rust-analyzer.diagnostics.disabled": [
+      "unresolved-macro-call"
+    ],
+    "files.associations": {
+      "*.js": "javascript",
+      "*.ex": "elixir",
+      "*.exs": "elixir",
+      "*.eex": "EEx",
+      "*.html.EEx": "HTML (EEx)",
+      "*.gotpl": "gogo",
+      "sstream": "cpp"
+    }
   }
 }

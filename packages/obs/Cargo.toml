@@ -1,0 +1,12 @@
+[package]
+name = "mg-pkg-obs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+macrograph-core = { path = "../../core" }
+serde_json = "1.0.68"
+serde = "1.0.130"
+obws = { git = "https://github.com/dnaka91/obws.git", branch = "v5-api" }
