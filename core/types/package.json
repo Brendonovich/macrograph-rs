@@ -1,0 +1,9 @@
+{
+    "name": "@macrograph/core-types",
+    "type": "module",
+    "exports": {
+        ".": {
+            "import": "./index.ts"
+        }
+    }
+}

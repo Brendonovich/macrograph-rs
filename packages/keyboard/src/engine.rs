@@ -1,23 +1,30 @@
 use std::sync::Arc;
 
 use crate::{key::Key, key_event::KeyEvent};
-use macrograph_core::{run_fn, Engine, EngineContext, EngineRef};
+use macrograph_core_types::{run_fn, Engine, EngineContext, EngineRef};
 use rdev::{listen, Event, EventType, Key as RDevKey};
 use tokio::sync::{
     mpsc::{self, UnboundedReceiver},
     Mutex,
 };
 
+pub struct State {
+    shift_pressed: bool,
+    ctrl_pressed: bool,
+    alt_pressed: bool,
+    meta_pressed: bool,
+    message_receiver: Arc<Mutex<UnboundedReceiver<Event>>>,
+}
+
 async fn run(engine: EngineRef, ctx: EngineContext) {
     let receiver = {
-        let mut mutex = engine.lock().await;
-        let state: &mut State = mutex.state();
-        state.message_receiver.clone()
+        let state = engine.state::<State>().await;
+        let receiver = state.message_receiver.clone();
+        receiver
     };
 
     while let Some(event) = receiver.lock().await.recv().await {
-        let mut engine = engine.lock().await;
-        let engine_state: &mut State = engine.state();
+        let mut engine_state = engine.state::<State>().await;
 
         match event.event_type {
             EventType::KeyRelease(key) => {
@@ -32,7 +39,7 @@ async fn run(engine: EngineRef, ctx: EngineContext) {
                 };
 
                 if let Some(key) = Key::from_rdev(key) {
-                    let event_name = format!("key_{}", key.to_string().to_lowercase());
+                    let event_name = format!("{}", key.to_string().to_uppercase());
 
                     let key_event = KeyEvent {
                         key,
@@ -43,7 +50,7 @@ async fn run(engine: EngineRef, ctx: EngineContext) {
                         meta_pressed: engine_state.meta_pressed,
                     };
 
-                    ctx.send(&event_name, key_event.to_value());
+                    ctx.send(&event_name, key_event);
                 }
             }
             EventType::KeyPress(key) => {
@@ -58,7 +65,7 @@ async fn run(engine: EngineRef, ctx: EngineContext) {
                 };
 
                 if let Some(key) = Key::from_rdev(key) {
-                    let event_name = format!("key_{}", key.to_string().to_lowercase());
+                    let event_name = format!("{}", key.to_string().to_uppercase());
 
                     let key_event = KeyEvent {
                         key,
@@ -69,7 +76,7 @@ async fn run(engine: EngineRef, ctx: EngineContext) {
                         meta_pressed: engine_state.meta_pressed,
                     };
 
-                    ctx.send(&event_name, key_event.to_value());
+                    ctx.send(&event_name, key_event);
                 }
             }
             _ => {}
@@ -77,21 +84,22 @@ async fn run(engine: EngineRef, ctx: EngineContext) {
     }
 }
 
-pub struct State {
-    shift_pressed: bool,
-    ctrl_pressed: bool,
-    alt_pressed: bool,
-    meta_pressed: bool,
-    message_receiver: Arc<Mutex<UnboundedReceiver<Event>>>,
-}
-
 pub fn setup_engine() -> Engine {
     let (tx, rx) = mpsc::unbounded_channel::<Event>();
 
-    listen(move |event| {
-        tx.send(event).unwrap();
-    })
-    .unwrap();
+    let cb = || {
+        listen(move |event| {
+            tx.send(event).unwrap();
+        })
+        .unwrap()
+    };
+
+    // macos isn't blocking
+    if cfg!(target_os = "macos") {
+        cb();
+    } else {
+        std::thread::spawn(cb);
+    }
 
     Engine::new(
         State {

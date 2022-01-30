@@ -13,7 +13,7 @@ export class Package {
     makeAutoObservable(this);
   }
 
-  schema(id: string) {
-    return this.schemas.find((s) => s.id === id);
+  schema(name: string) {
+    return this.schemas.find((s) => s.name === name);
   }
 }

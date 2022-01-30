@@ -2,7 +2,7 @@ use rdev::Key as RDevKey;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum Key {
   A,
   B,

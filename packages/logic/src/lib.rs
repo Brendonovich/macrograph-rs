@@ -1,26 +1,23 @@
-use macrograph_core::{exec_fn, DataInput, ExecInput, ExecOutput, NodeSchema, Package, Value};
+use macrograph_core_types::{exec_fn, Package};
 
-pub fn create_package() -> Package {
-    let mut package = Package::new("logic");
-
-    package.add_schema(NodeSchema::new_base(
-        "branch",
+#[no_mangle]
+pub fn create_package(pkg: &mut Package) {
+    pkg.set_name("Logic");
+    pkg.add_base_schema(
         "Branch",
-        |node| {
-            node.add_exec_input(ExecInput::new("exec", "", &node));
-            node.add_exec_output(ExecOutput::new("true", "True"));
-            node.add_exec_output(ExecOutput::new("false", "False"));
+        |n| {
+            n.add_exec_input("");
+            n.add_data_input("Condition", false.into());
 
-            node.add_data_input(DataInput::new("condition", "Condition", Value::Bool(false)));
+            n.add_exec_output("True");
+            n.add_exec_output("False");
         },
-        exec_fn!(|node| {
-            if node.get_bool("condition").unwrap() {
-                node.find_exec_output("true")
+        exec_fn!(|n, _ctx| async {
+            Some(if n.get_bool("Condition").unwrap() {
+                "True"
             } else {
-                node.find_exec_output("false")
-            }
+                "False"
+            })
         }),
-    ));
-
-    package
+    )
 }

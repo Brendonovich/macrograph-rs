@@ -8,7 +8,7 @@ use tauri::Manager;
 use macrograph_core::api::{Request, Response};
 use macrograph_core::core::CoreController;
 use macrograph_core::Core;
-use macrograph_packages::register_packages;
+// use macrograph_packages::register_packages;
 
 #[tauri::command]
 async fn core_request(
@@ -21,10 +21,10 @@ async fn core_request(
 #[tokio::main]
 async fn main() {
   let mut core = Core::new();
+  
+  core.load_library();
 
-  register_packages(&mut core);
-
-  core.start_engines().await;
+  core.setup().await;
 
   let controller = core.get_controller();
 

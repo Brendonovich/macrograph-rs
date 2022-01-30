@@ -1,12 +1,11 @@
-use std::{collections::HashMap};
-
-use crate::node::Position;
-
-use super::{node::Node, types::*};
+use std::{collections::HashMap, sync::Arc};
+use macrograph_core_types::*;
+use macrograph_core_types::node::{Node, Position};
+use macrograph_core_types::schema::NodeSchema;
 
 pub struct Graph {
     id_counter: i32,
-    pub nodes: HashMap<i32, NodeRef>,
+    pub(crate) nodes: HashMap<i32, NodeRef>,
 }
 
 impl Graph {
@@ -23,7 +22,7 @@ impl Graph {
         id
     }
 
-    pub fn create_node(&mut self, schema: &NodeSchemaRef, position: Position) -> NodeRef {
+    pub(crate) fn create_node(&mut self, schema: &Arc<NodeSchema>, position: Position) -> NodeRef {
         let id = self.generate_id();
 
         let node = Node::new(id, schema, position);
@@ -33,7 +32,7 @@ impl Graph {
         node.clone()
     }
 
-    pub fn node(&self, id: i32) -> Option<&NodeRef> {
+    pub(crate) fn node(&self, id: i32) -> Option<&NodeRef> {
         self.nodes.get(&id)
     }
 

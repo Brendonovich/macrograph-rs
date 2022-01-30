@@ -4,9 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "mg_pkg_obs"
+crate-type = ["dylib"]
+
 
 [dependencies]
-macrograph-core = { path = "../../core" }
+macrograph-core-types = { path = "../../core/types" }
 serde_json = "1.0.68"
 serde = "1.0.130"
-obws = { git = "https://github.com/dnaka91/obws.git", branch = "v5-api" }
+obws = { git = "https://github.com/dnaka91/obws.git", branch = "v5-api", features = ["events"] }
+tokio = {version = "1.15.0", features = ["rt", "rt-multi-thread"]}
+futures = "0.3.19"

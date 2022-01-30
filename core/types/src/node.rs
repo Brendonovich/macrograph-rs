@@ -3,10 +3,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{io::*, types::*, Value};
+use crate::{io::*, schema::NodeSchema, types::*, Value};
 
 #[derive(TS, Serialize, Deserialize, Debug)]
 #[ts(export)]
@@ -17,9 +17,8 @@ pub struct Position {
 
 pub struct Node {
     pub id: i32,
-    pub name: String,
     pub position: Position,
-    pub schema: NodeSchemaRef,
+    pub schema: Arc<NodeSchema>,
     pub inputs: Mutex<Vec<Input>>,
     pub outputs: Mutex<Vec<Output>>,
 }
@@ -39,17 +38,17 @@ impl Hash for Node {
 }
 
 impl Node {
-    pub(crate) fn new(id: i32, schema: &NodeSchemaRef, position: Position) -> NodeRef {
+    pub fn new(id: i32, schema: &Arc<NodeSchema>, position: Position) -> NodeRef {
         let schema = schema.clone();
 
         let node = Arc::new(Self {
             id,
             position,
-            name: schema.name.to_string(),
             schema: schema.clone(),
             inputs: Mutex::new(vec![]),
             outputs: Mutex::new(vec![]),
         });
+
 
         schema.build(node.clone());
 
@@ -73,7 +72,7 @@ impl Node {
             .lock()
             .unwrap()
             .iter()
-            .find(|i| i.get_id() == name)
+            .find(|i| i.get_name() == name)
             .map(|i| i.clone())
     }
 
@@ -82,7 +81,7 @@ impl Node {
             .lock()
             .unwrap()
             .iter()
-            .find(|o| o.get_id() == name)
+            .find(|o| o.get_name() == name)
             .map(|o| o.clone())
     }
 
@@ -126,32 +125,32 @@ impl Node {
         })
     }
 
-    pub fn add_data_input(&self, input: DataInput) {
+    pub fn add_data_input(&self, name: &str, default_value: Value) {
         self.inputs
             .lock()
             .unwrap()
-            .push(Input::Data(Arc::new(input)));
+            .push(Input::Data(Arc::new(DataInput::new(name, default_value))));
     }
 
-    pub fn add_exec_input(&self, input: ExecInput) {
+    pub fn add_exec_input(self: &Arc<Self>, name: &str) {
         self.inputs
             .lock()
             .unwrap()
-            .push(Input::Exec(Arc::new(input)));
+            .push(Input::Exec(Arc::new(ExecInput::new(name, self))));
     }
 
-    pub fn add_data_output(&self, output: DataOutput) {
+    pub fn add_data_output(self: &Arc<Self>, name: &str, value: Value) {
         self.outputs
             .lock()
             .unwrap()
-            .push(Output::Data(Arc::new(output)));
+            .push(Output::Data(Arc::new(DataOutput::new(name, value, self))));
     }
 
-    pub fn add_exec_output(&self, output: ExecOutput) {
+    pub fn add_exec_output(&self, name: &str) {
         self.outputs
             .lock()
             .unwrap()
-            .push(Output::Exec(Arc::new(output)));
+            .push(Output::Exec(Arc::new(ExecOutput::new(name))));
     }
 
     /* Value Getters */
@@ -177,11 +176,5 @@ impl Node {
 
     pub fn set_output(&self, output: &str, value: Value) {
         self.find_data_output(output).map(|o| o.set_value(value));
-    }
-}
-
-impl Drop for Node {
-    fn drop(&mut self) {
-        println!("dropping node")
     }
 }

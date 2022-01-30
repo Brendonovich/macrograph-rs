@@ -9,7 +9,6 @@ export class DataInput {
 
   constructor(
     public node: Node,
-    public id: string,
     public name: string,
     public defaultValue: Value
   ) {
@@ -19,7 +18,7 @@ export class DataInput {
   async disconnect() {
     await send("DisconnectIO", {
       node: this.node.id,
-      id: this.id,
+      io: this.name,
       is_input: true,
     });
 
@@ -60,7 +59,7 @@ export class DataInput {
 
       await send("SetDefaultValue", {
         node: this.node.id,
-        input: this.id,
+        input: this.name,
         value: valueObj,
       });
     }, 100);
@@ -80,7 +79,6 @@ export class DataOutput {
 
   constructor(
     public node: Node,
-    public id: string,
     public name: string,
     public type: Value
   ) {
@@ -90,7 +88,7 @@ export class DataOutput {
   async disconnect() {
     await send("DisconnectIO", {
       node: this.node.id,
-      id: this.id,
+      io: this.name,
       is_input: true,
     });
 
@@ -108,14 +106,14 @@ export class DataOutput {
 export class ExecInput {
   connection: ExecOutput | null = null;
 
-  constructor(public node: Node, public id: string, public name: string) {
+  constructor(public node: Node, public name: string) {
     makeAutoObservable(this);
   }
 
   async disconnect() {
     await send("DisconnectIO", {
       node: this.node.id,
-      id: this.id,
+      io: this.name,
       is_input: true,
     });
 
@@ -133,14 +131,14 @@ export class ExecInput {
 export class ExecOutput {
   connection: ExecInput | null = null;
 
-  constructor(public node: Node, public id: string, public name: string) {
+  constructor(public node: Node, public name: string) {
     makeAutoObservable(this);
   }
 
   async disconnect() {
     await send("DisconnectIO", {
       node: this.node.id,
-      id: this.id,
+      io: this.name,
       is_input: true,
     });
 

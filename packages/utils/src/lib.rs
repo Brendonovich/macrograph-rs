@@ -1,20 +1,16 @@
-use macrograph_core::{exec_fn, DataInput, NodeSchema, Package, Value};
+use macrograph_core_types::{exec_fn, Package};
 
-pub fn create_package() -> Package {
-    let mut package = Package::new("utils");
+#[no_mangle]
+pub fn create_package(package: &mut Package) {
+    package.set_name("Utils");
 
-    package.add_schema(NodeSchema::new_exec(
-        "print",
+    package.add_exec_schema(
         "Print",
         |node| {
-            node.add_data_input(DataInput::new("value", "Value", "".into()));
+            node.add_data_input("Value", "".into());
         },
-        exec_fn!(|node| {
-            println!("Print: {}", node.get_string("value").unwrap());
-
-            None
+        exec_fn!(|node, _ctx| async {
+            println!("Print: {}", node.get_string("Value").unwrap());
         }),
-    ));
-
-    package
+    );
 }

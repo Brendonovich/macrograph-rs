@@ -34,7 +34,7 @@ pub enum Request {
     },
     DisconnectIO {
         node: i32,
-        id: String,
+        io: String,
         is_input: bool,
     },
     GetPackages,
@@ -47,7 +47,6 @@ pub enum Request {
 pub enum Response {
     CreateNode {
         id: i32,
-        name: String,
         inputs: Vec<RawInput>,
         outputs: Vec<RawOutput>,
     },

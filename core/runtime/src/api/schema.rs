@@ -1,7 +1,7 @@
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::{schema::NodeSchemaType, NodeSchema};
+use crate::schema::{NodeSchema, NodeSchemaType};
 
 #[derive(TS, Serialize, Debug)]
 #[ts(export)]
@@ -16,7 +16,6 @@ pub enum RawNodeSchemaType {
 #[ts(export)]
 #[serde(rename = "NodeSchema")]
 pub struct RawNodeSchema {
-    pub id: String,
     pub name: String,
     pub package: String,
     #[serde(rename = "type")]
@@ -26,7 +25,6 @@ pub struct RawNodeSchema {
 impl From<&NodeSchema> for RawNodeSchema {
     fn from(schema: &NodeSchema) -> Self {
         Self {
-            id: schema.id.clone(),
             name: schema.name.clone(),
             package: schema.package.clone(),
             t: match schema.inner {

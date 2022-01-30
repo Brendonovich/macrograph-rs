@@ -2,11 +2,9 @@ use arc_swap::ArcSwap;
 
 use crate::types::NodeRef;
 use crate::value::Value;
-use std::sync::{Arc};
-use no_deadlocks::Mutex;
+use std::sync::{Arc, Mutex};
 
 pub struct DataInput {
-    pub id: String,
     pub name: String,
     pub default_value: ArcSwap<Value>,
     pub value: ArcSwap<Value>,
@@ -14,11 +12,10 @@ pub struct DataInput {
 }
 
 impl DataInput {
-    pub fn new(id: &str, name: &str, default_value: Value) -> Self {
+    pub fn new(name: &str, default_value: Value) -> Self {
         let value = Arc::new(default_value);
 
         Self {
-            id: id.into(),
             name: name.into(),
             value: ArcSwap::from(value.clone()),
             default_value: ArcSwap::from(value),
@@ -35,7 +32,6 @@ impl DataInput {
     }
 
     pub fn set_default_value(&self, value: Value) {
-        println!("setting default value: {:?}", value);
         if std::mem::discriminant(self.default_value.load().as_ref())
             == std::mem::discriminant(&value)
         {
@@ -70,16 +66,14 @@ impl DataInput {
 }
 
 pub struct ExecInput {
-    pub id: String,
     pub name: String,
     pub node: NodeRef,
     pub connected_output: Mutex<Option<Arc<ExecOutput>>>,
 }
 
 impl ExecInput {
-    pub fn new(id: &str, name: &str, node: &NodeRef) -> Self {
+    pub fn new(name: &str, node: &NodeRef) -> Self {
         Self {
-            id: id.into(),
             name: name.into(),
             node: node.clone(),
             connected_output: Mutex::new(None),
@@ -110,20 +104,13 @@ pub enum Input {
 }
 
 impl Input {
-    pub fn get_id(&self) -> &str {
-        match self {
-            Self::Exec(o) => &o.id,
-            Self::Data(o) => &o.id,
-        }
-    }
-
     pub fn get_name(&self) -> &str {
         match self {
             Self::Exec(o) => &o.name,
             Self::Data(o) => &o.name,
         }
     }
-    
+
     pub fn disconnect(&self) {
         match self {
             Self::Exec(o) => o.disconnect(),
@@ -133,7 +120,6 @@ impl Input {
 }
 
 pub struct DataOutput {
-    pub id: String,
     pub name: String,
     value: ArcSwap<Value>,
     pub node: NodeRef,
@@ -141,9 +127,8 @@ pub struct DataOutput {
 }
 
 impl DataOutput {
-    pub fn new(id: &str, name: &str, value: Value, node: &NodeRef) -> Self {
+    pub fn new(name: &str, value: Value, node: &NodeRef) -> Self {
         Self {
-            id: id.into(),
             name: name.into(),
             value: ArcSwap::from_pointee(value),
             node: node.clone(),
@@ -173,15 +158,13 @@ impl DataOutput {
 }
 
 pub struct ExecOutput {
-    pub id: String,
     pub name: String,
     pub connected_input: Mutex<Option<Arc<ExecInput>>>,
 }
 
 impl ExecOutput {
-    pub fn new(id: &str, name: &str) -> Self {
+    pub fn new(name: &str) -> Self {
         Self {
-            id: id.into(),
             name: name.into(),
             connected_input: Mutex::new(None),
         }
@@ -199,7 +182,7 @@ impl ExecOutput {
         if let Some(input) = &*connected_input {
             *input.connected_output.lock().unwrap() = None;
         }
-        
+
         *connected_input = None;
     }
 }
@@ -211,13 +194,6 @@ pub enum Output {
 }
 
 impl Output {
-    pub fn get_id(&self) -> &str {
-        match self {
-            Self::Exec(o) => &o.id,
-            Self::Data(o) => &o.id,
-        }
-    }
-
     pub fn get_name(&self) -> &str {
         match self {
             Self::Exec(o) => &o.name,

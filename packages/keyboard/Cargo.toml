@@ -3,11 +3,16 @@ name = "mg-pkg-keyboard"
 version = "0.1.0"
 edition = "2021"
 
+
+[lib]
+name = "mg_pkg_keyboard"
+crate-type = ["dylib"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 rdev = { git = "https://github.com/Brendonovich/rdev", features = ["macos_noloop"] }
-macrograph-core = { path = "../../core" }
+macrograph-core-types = { path = "../../core/types" }
 serde_json = "1.0.68"
 serde = "1.0.130"
 futures = "0.3.19"

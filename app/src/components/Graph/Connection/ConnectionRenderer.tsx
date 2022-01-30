@@ -48,7 +48,7 @@ export const ConnectionRender = observer(() => {
           n.inputs.map((i) => {
             if (!i.connected) return null;
 
-            const key = `${n.id}-${i.id}`;
+            const key = `${n.id}-${i.name}`;
 
             const inputPos = UI.pinPositions.get(i);
             if (!inputPos) return null;

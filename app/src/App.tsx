@@ -31,10 +31,12 @@ function App() {
           lastScale = 1 / lastScale;
         }
       }
+
       UI.updateScale((scale - lastScale) * direction, {
         x: e.clientX,
         y: e.clientY,
       });
+
       lastScale = e.scale;
     };
 
@@ -55,14 +57,13 @@ function App() {
   useEffect(() => {
     core.loadPackages().then(() => {
       setReady(true);
-      const keyboardSchema = core.schema("keyboard", "key_a")!;
-      const obsSchema = core.schema("obs", "set_current_scene")!;
+      // const keyboardSchema = core.schema("keyboard", "A")!;
+      const obsSchema = core.schema("obs", "Set Current Scene")!;
 
-      core.graph.createNode(keyboardSchema, { x: 0, y: 0 });
-      core.graph.createNode(obsSchema, { x: 100, y: 0 });
+      // core.graph.createNode(keyboardSchema, { x: 0, y: 0 });
+      // core.graph.createNode(obsSchema, { x: 100, y: 100 });
     });
   }, []);
-
   if (!ready) return <>loading...</>;
 
   return (
@@ -78,7 +79,10 @@ function App() {
               <SchemaMenu
                 position={UI.schemaMenuPosition}
                 onSchemaClicked={async (s) => {
-                  await core.graph.createNode(s, UI.schemaMenuPosition!);
+                  await core.graph.createNode(
+                    s,
+                    UI.toGraphSpace(UI.schemaMenuPosition!)
+                  );
                   UI.setSchemaMenuPosition();
                 }}
               />
@@ -143,6 +147,13 @@ function App() {
                     break;
                   case 2:
                     setPan(PanState.Waiting);
+                    UI.setMouseDownLocation({
+                      x: e.clientX,
+                      y: e.clientY,
+                    });
+                    UI.setMouseDownTranslate({
+                      ...UI.translate,
+                    });
                     break;
                 }
               }}
@@ -150,9 +161,17 @@ function App() {
                 if (pan === PanState.None) return;
                 if (pan === PanState.Waiting) setPan(PanState.Active);
 
-                UI.updateTranslate({
-                  x: -e.movementX / UI.scale,
-                  y: -e.movementY / UI.scale,
+                UI.setTranslate({
+                  x:
+                    (UI.mouseDownLocation!.x -
+                      e.clientX +
+                      UI.mouseDownTranslate!.x * UI.scale) /
+                    UI.scale,
+                  y:
+                    (UI.mouseDownLocation!.y -
+                      e.clientY +
+                      UI.mouseDownTranslate!.y * UI.scale) /
+                    UI.scale,
                 });
               }}
               onContextMenu={(e) => {

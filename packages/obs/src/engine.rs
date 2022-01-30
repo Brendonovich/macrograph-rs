@@ -1,11 +1,22 @@
-use macrograph_core::{run_fn, Engine, EngineContext, EngineRef};
-use obws::Client;
+use futures::{pin_mut, stream::StreamExt};
+use macrograph_core_types::{run_fn, Engine, EngineContext, EngineRef};
+use obws::{client::ConnectConfig, requests::EventSubscription, Client};
 
-async fn run(engine: EngineRef, _ctx: EngineContext) {
-    let client = Client::connect("localhost", 4444, None as Option<String>).await.unwrap();
+async fn run(engine: EngineRef, ctx: EngineContext) {
+    // I hate this but currently it's the only thing that works
+    let _guard = ctx.handle.enter();
+    let mut state = engine.state::<State>().await;
 
-    let mut engine = engine.lock().await;
-    let mut state: &mut State = engine.state();
+    let client = Client::connect_with_config(ConnectConfig {
+        host: "localhost",
+        port: 4444,
+        password: None as Option<String>,
+        event_subscriptions: Some(EventSubscription::ALL),
+        broadcast_capacity: None,
+    })
+    .await
+    .unwrap();
+    
     state.client = Some(client);
 }
 

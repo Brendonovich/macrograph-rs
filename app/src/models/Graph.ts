@@ -28,11 +28,18 @@ export class Graph {
   ) {
     if (!pinsCanConnect(output, input)) return;
 
+    console.log({
+      output_node: output.node.id,
+      output: output.name,
+      input_node: input.node.id,
+      input: input.name,
+    });
+
     await send("ConnectIO", {
       output_node: output.node.id,
-      output: output.id,
+      output: output.name,
       input_node: input.node.id,
-      input: input.id,
+      input: input.name,
     });
 
     runInAction(() => {
@@ -62,7 +69,7 @@ export class Graph {
   async createNode(schema: NodeSchema, position: Position) {
     const res = await send("CreateNode", {
       package: schema.package.name,
-      schema: schema.id,
+      schema: schema.name,
       position,
     });
 

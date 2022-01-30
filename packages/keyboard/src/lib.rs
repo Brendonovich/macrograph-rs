@@ -3,45 +3,42 @@ pub mod key;
 pub mod key_event;
 mod types;
 
-use macrograph_core::{
-    io::{DataOutput, ExecOutput},
-    package::Package,
-    schema::NodeSchema,
-};
-
 use self::engine::setup_engine;
 use key_event::KeyEvent;
+use macrograph_core_types::{fire_fn, Package};
 
-pub fn create_package() -> Package {
-    let mut package = Package::new("keyboard");
+const PRESSED: &str = "Pressed";
+const RELEASED: &str = "Released";
+const SHIFT: &str = "Shift Pressed";
+const CTRL: &str = "Ctrl Pressed";
+const ALT: &str = "Alt Pressed";
+const META: &str = "Meta Pressed";
 
-    for c in 'a'..'z' {
-        package.add_schema(NodeSchema::new_event(
-            &format!("key_{}", c),
-            &format!("{}", c.to_uppercase()),
-            |node| {
-                node.add_exec_output(ExecOutput::new("pressed", "Pressed"));
-                node.add_exec_output(ExecOutput::new("released", "Released"));
-
-                node.add_data_output(DataOutput::new("shift_pressed", "Shift Pressed", false.into(), &node));
-                node.add_data_output(DataOutput::new("ctrl_pressed", "Ctrl Pressed", false.into(), &node));
-                node.add_data_output(DataOutput::new("alt_pressed", "Alt Pressed", false.into(), &node));
-                node.add_data_output(DataOutput::new("meta_pressed", "Meta Pressed", false.into(), &node));
-            },
-            |node, event| {
-                let event: KeyEvent = serde_json::from_value(event).unwrap();
-
-                node.set_output("shift_pressed", event.shift_pressed.into());
-                node.set_output("ctrl_pressed", event.ctrl_pressed.into());
-                node.set_output("alt_pressed", event.alt_pressed.into());
-                node.set_output("meta_pressed", event.meta_pressed.into());
-
-                node.find_exec_output(if event.pressed { "pressed" } else { "released" })
-            },
-        ));
-    }
-
+#[no_mangle]
+pub fn create_package(package: &mut Package) {
+    package.set_name("Keyboard");
     package.set_engine(setup_engine());
 
-    package
+    for c in 'A'..'Z' {
+        package.add_event_schema(
+            &c.to_string(),
+            |node| {
+                node.add_exec_output(PRESSED);
+                node.add_exec_output(RELEASED);
+
+                node.add_data_output(SHIFT, false.into());
+                node.add_data_output(CTRL, false.into());
+                node.add_data_output(ALT, false.into());
+                node.add_data_output(META, false.into());
+            },
+            fire_fn!(|node, event: KeyEvent| {
+                node.set_output(SHIFT, event.shift_pressed.into());
+                node.set_output(CTRL, event.ctrl_pressed.into());
+                node.set_output(ALT, event.alt_pressed.into());
+                node.set_output(META, event.meta_pressed.into());
+
+                Some(if event.pressed { PRESSED } else { RELEASED })
+            }),
+        );
+    }
 }

@@ -1,5 +1,5 @@
-import { makeAutoObservable } from "mobx";
-import {Position} from "@macrograph/core-types"
+import { makeAutoObservable, toJS } from "mobx";
+import { Position } from "@macrograph/core-types";
 
 import { Node, Pin } from "~/models";
 
@@ -9,10 +9,12 @@ class UIStore {
   hoveringPin: Pin | null = null;
   mouseDragLocation: XY | null = null;
   schemaMenuPosition: Position | null = null;
+  mouseDownLocation: XY | null = null;
+  mouseDownTranslate: XY | null = null;
 
   translate: XY = {
-    x: 0,
-    y: 0,
+    x: -200,
+    y: -200,
   };
   scale = 1;
 
@@ -20,6 +22,21 @@ class UIStore {
 
   constructor() {
     makeAutoObservable(this);
+  }
+
+  toGraphSpace(point: XY) {
+    return {
+      x: point.x / this.scale + this.translate.x,
+      y: point.y / this.scale + this.translate.y,
+    };
+  }
+
+  // Converts a location in the graph (eg the graph's origin (0,0)) to its location on screen
+  toScreenSpace(point: XY) {
+    return {
+      x: (point.x - this.translate.x) * this.scale,
+      y: (point.y - this.translate.y) * this.scale,
+    };
   }
 
   setSelectedNode(node?: Node) {
@@ -41,19 +58,15 @@ class UIStore {
     this.translate = translate;
   }
 
-  updateScale(delta: number, origin: XY) {
-    const initialTranslate = { ...this.translate };
-    const initialScale = this.scale;
+  updateScale(delta: number, screenOrigin: XY) {
+    const startGraphOrigin = UI.toGraphSpace(screenOrigin);
+    this.scale = Math.min(Math.max(1, this.scale + delta), 2.5);
+    const endGraphOrigin = this.toScreenSpace(startGraphOrigin);
 
-    this.setTranslate({
-      x: origin.x / initialScale + this.translate.x,
-      y: origin.y / initialScale + this.translate.y,
-    });
-    this.scale = Math.min(Math.max(1, this.scale + delta), 5);
-    this.setTranslate({
-      x: initialTranslate.x + (origin.x / initialScale - origin.x / UI.scale),
-      y: initialTranslate.y + (origin.y / initialScale - origin.y / UI.scale),
-    });
+    this.translate = {
+      x: this.translate.x + (endGraphOrigin.x - screenOrigin.x) / this.scale,
+      y: this.translate.y + (endGraphOrigin.y - screenOrigin.y) / this.scale,
+    };
   }
 
   setDraggingPin(pin?: Pin) {
@@ -67,8 +80,16 @@ class UIStore {
     this.mouseDragLocation = location ?? null;
   }
 
+  setMouseDownLocation(location?: XY) {
+    this.mouseDownLocation = location ?? null;
+  }
+
   setSchemaMenuPosition(position?: XY) {
     this.schemaMenuPosition = position ?? null;
+  }
+
+  setMouseDownTranslate(translate?: XY) {
+    this.mouseDownTranslate = translate ?? null;
   }
 }
 

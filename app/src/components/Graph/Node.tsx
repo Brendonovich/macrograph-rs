@@ -77,24 +77,24 @@ export const Node = observer<Props>(({ node }) => {
             e.stopPropagation();
           }}
         >
-          {node.name}
+          {node.schema.name}
         </div>
         <div className="flex flex-row gap-2">
           <div className="p-2 flex flex-col space-y-2.5">
             {node.inputs.map((i) =>
               i instanceof DataInputModel ? (
-                <DataInput input={i} key={i.id} />
+                <DataInput input={i} key={i.name} />
               ) : (
-                <ExecInput input={i} key={i.id} />
+                <ExecInput input={i} key={i.name} />
               )
             )}
           </div>
           <div className="p-2 flex flex-col space-y-2.5 items-end">
             {node.outputs.map((o) =>
               o instanceof DataOutputModel ? (
-                <DataOutput output={o} key={o.id} />
+                <DataOutput output={o} key={o.name} />
               ) : (
-                <ExecOutput output={o} key={o.id} />
+                <ExecOutput output={o} key={o.name} />
               )
             )}
           </div>
