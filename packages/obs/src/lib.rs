@@ -16,7 +16,6 @@ pub fn create_package() -> Package {
         exec_fn!(|io, ctx| async {
             let scene = io.get_string("Scene").unwrap();
             let engine = ctx.engine.unwrap();
-            println!("Setting scene to {:?}", scene);
             let state = engine.state::<State>().await;
 
             let client = state.client.as_ref();

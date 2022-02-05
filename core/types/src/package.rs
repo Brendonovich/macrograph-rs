@@ -16,7 +16,7 @@ impl Package {
             schemas: vec![],
             engine: None,
             runtime: tokio::runtime::Builder::new_multi_thread()
-                .worker_threads(2)
+                .worker_threads(1)
                 .enable_all()
                 .build()
                 .unwrap(),

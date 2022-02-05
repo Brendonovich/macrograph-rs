@@ -238,7 +238,6 @@ impl Core {
     }
 
     pub fn disconnect_io(&mut self, node: i32, io: &str, is_input: bool) -> Result<(), ()> {
-        println!("{} {} {}", node, io, is_input);
         let node = self.graph.node(node);
 
         let node = match node {

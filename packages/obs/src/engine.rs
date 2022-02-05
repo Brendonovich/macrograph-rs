@@ -27,7 +27,6 @@ async fn main(engine: EngineRef, ctx: EngineContext) {
     pin_mut!(stream);
 
     while let Some(event) = stream.next().await {
-        println!("{:?}", event);
         match event {
             Event::CurrentProgramSceneChanged { scene_name } => {
                 ctx.send(PROGRAM_SCENE_CHANGED, scene_name);

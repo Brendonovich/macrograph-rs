@@ -21,12 +21,12 @@ async fn core_request(
 async fn main() {
   let mut core = Core::new();
   
-  // for package in ["logic","utils", "keyboard", "obs"] {
-  //   core.load_library(&format!(
-  //     "/Users/brendanallan/github.com/Brendonovich/macrograph/target/debug/libmg_pkg_{}.dylib",
-  //     package
-  //   ));
-  // }
+  for package in ["logic","utils", "keyboard", "obs"] {
+    core.load_library(&format!(
+      "/Users/brendanallan/github.com/Brendonovich/macrograph/target/debug/libmg_pkg_{}.dylib",
+      package
+    ));
+  }
 
   core.setup().await;
 

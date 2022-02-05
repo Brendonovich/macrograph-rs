@@ -13,7 +13,6 @@ pub fn create_package() -> Package {
             s.exec_output("False");
         },
         exec_fn!(|io, _ctx| async {
-            println!("{:?}", io);
             Some(if io.get_bool("Condition").unwrap() {
                 "True"
             } else {
