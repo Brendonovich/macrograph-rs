@@ -1,25 +1,25 @@
 use arc_swap::ArcSwap;
 
-use crate::types::NodeRef;
+use crate::{types::NodeRef, node::Node};
 use crate::value::Value;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 
 pub struct DataInput {
     pub name: String,
     pub default_value: ArcSwap<Value>,
     pub value: ArcSwap<Value>,
-    pub connected_output: Mutex<Option<Arc<DataOutput>>>,
+    pub connected_output: Mutex<Weak<DataOutput>>,
 }
 
 impl DataInput {
-    pub fn new(name: &str, default_value: Value) -> Self {
+    pub fn new(name: String, default_value: Value) -> Self {
         let value = Arc::new(default_value);
 
         Self {
-            name: name.into(),
+            name,
             value: ArcSwap::from(value.clone()),
             default_value: ArcSwap::from(value),
-            connected_output: Mutex::new(None),
+            connected_output: Mutex::new(Weak::new()),
         }
     }
 
@@ -32,9 +32,7 @@ impl DataInput {
     }
 
     pub fn set_default_value(&self, value: Value) {
-        if std::mem::discriminant(self.default_value.load().as_ref())
-            == std::mem::discriminant(&value)
-        {
+        if Value::is_same_type(self.default_value.load().as_ref(), &value) {
             self.default_value.swap(Arc::new(value));
         }
     }
@@ -46,13 +44,13 @@ impl DataInput {
     pub fn connect_output(&self, output: &Arc<DataOutput>) {
         self.disconnect();
 
-        *self.connected_output.lock().unwrap() = Some(output.clone());
+        *self.connected_output.lock().unwrap() = Arc::downgrade(output);
     }
 
     pub fn disconnect(&self) {
         let mut input_connected_output = self.connected_output.lock().unwrap();
 
-        if let Some(input_connected_output) = &*input_connected_output {
+        if let Some(input_connected_output) = input_connected_output.upgrade() {
             let mut inputs = input_connected_output.connected_inputs.lock().unwrap();
             let index = inputs
                 .iter()
@@ -61,39 +59,39 @@ impl DataInput {
             inputs.swap_remove(index);
         }
 
-        *input_connected_output = None;
+        *input_connected_output = Weak::new();
     }
 }
 
 pub struct ExecInput {
     pub name: String,
-    pub node: NodeRef,
-    pub connected_output: Mutex<Option<Arc<ExecOutput>>>,
+    pub node: Weak<Node>,
+    pub connected_output: Mutex<Weak<ExecOutput>>,
 }
 
 impl ExecInput {
-    pub fn new(name: &str, node: &NodeRef) -> Self {
+    pub fn new(name: String, node: &NodeRef) -> Self {
         Self {
-            name: name.into(),
-            node: node.clone(),
-            connected_output: Mutex::new(None),
+            name,
+            node: Arc::downgrade(node),
+            connected_output: Mutex::new(Weak::new()),
         }
     }
 
     pub fn connect_output(&self, output: &Arc<ExecOutput>) {
         self.disconnect();
 
-        *self.connected_output.lock().unwrap() = Some(output.clone());
+        *self.connected_output.lock().unwrap() = Arc::downgrade(output)
     }
 
     pub fn disconnect(&self) {
         let mut connected_output = self.connected_output.lock().unwrap();
 
-        if let Some(output) = &*connected_output {
-            *output.connected_input.lock().unwrap() = None;
+        if let Some(output) = connected_output.upgrade() {
+            *output.connected_input.lock().unwrap() = Weak::new();
         }
 
-        *connected_output = None;
+        *connected_output = Weak::new();
     }
 }
 
@@ -121,17 +119,17 @@ impl Input {
 
 pub struct DataOutput {
     pub name: String,
-    value: ArcSwap<Value>,
-    pub node: NodeRef,
+    pub value: ArcSwap<Value>,
+    pub node: Weak<Node>,
     pub connected_inputs: Mutex<Vec<Arc<DataInput>>>,
 }
 
 impl DataOutput {
-    pub fn new(name: &str, value: Value, node: &NodeRef) -> Self {
+    pub fn new(name: String, value: Value, node: &NodeRef) -> Self {
         Self {
-            name: name.into(),
+            name,
             value: ArcSwap::from_pointee(value),
-            node: node.clone(),
+            node: Arc::downgrade(node),
             connected_inputs: Mutex::new(vec![]),
         }
     }
@@ -139,11 +137,7 @@ impl DataOutput {
     pub fn set_value(&self, value: Value) {
         self.value.swap(Arc::new(value));
     }
-
-    pub fn get_value(&self) -> Arc<Value> {
-        self.value.load().clone()
-    }
-
+    
     pub fn connect_input(&self, input: &Arc<DataInput>) {
         self.connected_inputs.lock().unwrap().push(input.clone());
     }
@@ -152,38 +146,38 @@ impl DataOutput {
         let mut connected_inputs = self.connected_inputs.lock().unwrap();
         connected_inputs
             .iter()
-            .for_each(|i| *i.connected_output.lock().unwrap() = None);
+            .for_each(|i| *i.connected_output.lock().unwrap() = Weak::new());
         connected_inputs.clear();
     }
 }
 
 pub struct ExecOutput {
     pub name: String,
-    pub connected_input: Mutex<Option<Arc<ExecInput>>>,
+    pub connected_input: Mutex<Weak<ExecInput>>,
 }
 
 impl ExecOutput {
-    pub fn new(name: &str) -> Self {
+    pub fn new(name: String) -> Self {
         Self {
-            name: name.into(),
-            connected_input: Mutex::new(None),
+            name,
+            connected_input: Mutex::new(Weak::new()),
         }
     }
 
     pub fn connect_input(&self, input: &Arc<ExecInput>) {
         self.disconnect();
 
-        *self.connected_input.lock().unwrap() = Some(input.clone());
+        *self.connected_input.lock().unwrap() = Arc::downgrade(input);
     }
 
     pub fn disconnect(&self) {
         let mut connected_input = self.connected_input.lock().unwrap();
 
-        if let Some(input) = &*connected_input {
-            *input.connected_output.lock().unwrap() = None;
+        if let Some(input) = connected_input.upgrade() {
+            *input.connected_output.lock().unwrap() = Weak::new();
         }
 
-        *connected_input = None;
+        *connected_input = Weak::new();
     }
 }
 

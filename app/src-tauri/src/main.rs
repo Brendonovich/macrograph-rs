@@ -8,7 +8,6 @@ use tauri::Manager;
 use macrograph_core::api::{Request, Response};
 use macrograph_core::core::CoreController;
 use macrograph_core::Core;
-// use macrograph_packages::register_packages;
 
 #[tauri::command]
 async fn core_request(
@@ -22,7 +21,12 @@ async fn core_request(
 async fn main() {
   let mut core = Core::new();
   
-  core.load_library();
+  // for package in ["logic","utils", "keyboard", "obs"] {
+  //   core.load_library(&format!(
+  //     "/Users/brendanallan/github.com/Brendonovich/macrograph/target/debug/libmg_pkg_{}.dylib",
+  //     package
+  //   ));
+  // }
 
   core.setup().await;
 

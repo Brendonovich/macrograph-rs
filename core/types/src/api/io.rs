@@ -54,7 +54,7 @@ impl From<&Output> for RawOutput {
         match output {
             Output::Data(data_output) => RawOutput::Data {
                 name: data_output.name.clone(),
-                typ: (*data_output.get_value()).clone(),
+                typ: (**data_output.value.load()).clone(),
             },
             Output::Exec(exec_output) => RawOutput::Exec {
                 name: exec_output.name.clone(),

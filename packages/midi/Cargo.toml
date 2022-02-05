@@ -3,8 +3,13 @@ name = "mg-pkg-midi"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "mg_pkg_midi"
+crate-type = ["dylib"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 midir = "0.7.0"
-macrograph-core = { path = "../../core" }
+macrograph-core-types = { path = "../../core/types" }
+tokio = {version = "1.16.1", features = ["rt", "rt-multi-thread"]}

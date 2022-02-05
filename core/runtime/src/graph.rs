@@ -1,7 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
-use macrograph_core_types::*;
 use macrograph_core_types::node::{Node, Position};
 use macrograph_core_types::schema::NodeSchema;
+use macrograph_core_types::*;
+use std::{collections::HashMap, sync::Arc};
 
 pub struct Graph {
     id_counter: i32,
@@ -32,15 +32,30 @@ impl Graph {
         node.clone()
     }
 
+    pub(crate) fn delete_node(&mut self, node: i32) {
+        {
+            let node = self.nodes.get(&node).unwrap();
+
+            node.inputs
+                .lock()
+                .unwrap()
+                .iter()
+                .for_each(|i| i.disconnect());
+            node.outputs
+                .lock()
+                .unwrap()
+                .iter()
+                .for_each(|i| i.disconnect());
+        }
+        
+        self.nodes.remove(&node);
+    }
+
     pub(crate) fn node(&self, id: i32) -> Option<&NodeRef> {
         self.nodes.get(&id)
     }
 
     pub fn reset(&mut self) {
-        for node in self.nodes.values_mut() {
-            node.dispose();
-        }
-
         self.nodes.clear();
     }
 

@@ -12,14 +12,14 @@ import {
 import { pinsCanConnect, send } from "~/utils";
 
 export class Graph {
-  nodes: Node[] = [];
+  nodes: Record<number, Node> = {};
 
   constructor() {
     makeAutoObservable(this);
   }
 
   addNode(node: Node) {
-    this.nodes.push(node);
+    this.nodes[node.id] = node;
   }
 
   async connectPins(
@@ -27,13 +27,6 @@ export class Graph {
     input: DataInput | ExecInput
   ) {
     if (!pinsCanConnect(output, input)) return;
-
-    console.log({
-      output_node: output.node.id,
-      output: output.name,
-      input_node: input.node.id,
-      input: input.name,
-    });
 
     await send("ConnectIO", {
       output_node: output.node.id,
@@ -80,7 +73,22 @@ export class Graph {
         position,
       });
 
-      this.nodes.push(node);
+      this.addNode(node);
+    });
+  }
+
+  async deleteNode(id: number) {
+    await send("DeleteNode", {
+      node: id,
+    });
+
+    runInAction(() => {
+      const node = this.nodes[id];
+
+      node.inputs.forEach((i) => i.disconnect(false));
+      node.outputs.forEach((o) => o.disconnect(false));
+
+      delete this.nodes[id];
     });
   }
 }

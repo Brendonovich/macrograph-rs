@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::ffi::OsStr;
 
 use crate::api::{Request, Response};
 use crate::graph::Graph;
@@ -57,19 +58,6 @@ impl CoreController {
 }
 
 impl Core {
-    pub fn load_library(&mut self) {
-        unsafe {
-            for package in ["logic", "obs", "utils", "keyboard"] {
-                let lib = libloading::Library::new(format!("/Users/brendanallan/github.com/Brendonovich/macrograph/target/debug/libmg_pkg_{}.dylib", package)).unwrap();
-                let create_package: libloading::Symbol<fn(&mut Package)> =
-                    lib.get(b"create_package").unwrap();
-                let mut p = Package::new("test");
-                create_package(&mut p);
-                self.packages.push(p);
-            }
-        }
-    }
-
     pub fn new() -> Self {
         Self {
             graph: Graph::new(),
@@ -79,8 +67,14 @@ impl Core {
         }
     }
 
-    pub fn register_package(&mut self, package: Package) {
-        self.packages.push(package);
+    pub fn load_library(&mut self, path: &str) {
+        unsafe {
+            let lib = libloading::Library::new(path).unwrap();
+            let create_package: libloading::Symbol<fn() -> Package> =
+                lib.get(b"create_package").unwrap();
+            let p = create_package();
+            self.packages.push(p);
+        }
     }
 
     pub fn package(&self, name: &str) -> Option<&Package> {
@@ -94,13 +88,15 @@ impl Core {
     pub async fn setup(&self) {
         for package in &self.packages {
             if let Some(engine) = &package.engine {
+                let engine = engine.clone();
                 let run = engine.run;
-                let handle = engine.runtime.handle().clone();
+                let channel = self.event_channel.0.clone();
+                let package_name = package.name.clone();
+                let handle = package.runtime.handle().clone();
 
-                tokio::spawn(run(
-                    engine.clone(),
-                    EngineContext::new(&package.name, &self.event_channel.0, handle),
-                ));
+                std::thread::spawn(move || {
+                    run(engine, EngineContext::new(package_name, channel, handle));
+                });
             }
         }
     }
@@ -123,6 +119,10 @@ impl Core {
                     inputs: inputs.iter().map(|i| i.into()).collect(),
                     outputs: outputs.iter().map(|o| o.into()).collect(),
                 }
+            }
+            DeleteNode { node } => {
+                self.delete_node(node);
+                Response::DeleteNode
             }
             ConnectIO {
                 output_node,
@@ -185,6 +185,10 @@ impl Core {
         None
     }
 
+    fn delete_node(&mut self, node: i32) {
+        self.graph.delete_node(node)
+    }
+
     pub fn connect_io(
         &mut self,
         output_node: i32,
@@ -234,6 +238,7 @@ impl Core {
     }
 
     pub fn disconnect_io(&mut self, node: i32, io: &str, is_input: bool) -> Result<(), ()> {
+        println!("{} {} {}", node, io, is_input);
         let node = self.graph.node(node);
 
         let node = match node {
@@ -298,10 +303,10 @@ impl Core {
     pub(crate) async fn execute_node(&self, node: &NodeRef) -> Option<&'static str> {
         for input in node.inputs.lock().unwrap().iter() {
             if let Input::Data(input) = input {
-                if let Some(output) = &*input.connected_output.lock().unwrap() {
-                    match **output.node.schema {
+                if let Some(output) = input.connected_output.lock().unwrap().upgrade() {
+                    match **output.node.upgrade().unwrap().schema {
                         NodeSchemaType::Exec { .. } | NodeSchemaType::Event { .. } => {
-                            input.set_value(output.get_value())
+                            input.set_value(output.value.load_full())
                         }
                         _ => {}
                     };
@@ -311,17 +316,27 @@ impl Core {
             }
         }
 
-        let engine = self.package(&node.schema.package).unwrap().engine.clone();
-        let context = ExecuteContext { engine };
+        let package = self.package(&node.schema.package).unwrap();
+        let engine = package.engine.clone();
+        let context = ExecuteContext {
+            engine,
+            handle: package.runtime.handle().clone(),
+        };
 
-        match &**node.schema {
-            NodeSchemaType::Base { execute } => (execute)(node.clone(), context).await,
+        let mut io_data = node.get_io_data();
+
+        let res = match &**node.schema {
+            NodeSchemaType::Base { execute } => (execute)(&mut io_data, context).await,
             NodeSchemaType::Exec { execute } => {
-                (execute)(node.clone(), context).await;
+                (execute)(&mut io_data, context).await;
                 Some("")
             }
             _ => None,
-        }
+        };
+
+        node.parse_io_data(io_data);
+        
+        res
     }
 
     pub(crate) async fn fire_node(&self, node_id: i32, data: &Box<dyn Any + Send + Sync>) {
@@ -332,8 +347,12 @@ impl Core {
             _ => return,
         };
 
+        let mut io_data = node.get_io_data();
+
         let mut target_output_mut =
-            (fire)(node.clone(), data.as_ref()).and_then(|id| node.find_exec_output(id));
+            (fire)(&mut io_data, data.as_ref()).and_then(|id| node.find_exec_output(id));
+
+        node.parse_io_data(io_data);
 
         while let Some(target_output) = target_output_mut.as_ref() {
             let connected_input = {
@@ -342,8 +361,8 @@ impl Core {
                 i.clone()
             };
 
-            target_output_mut = if let Some(connected_input) = connected_input {
-                let node = connected_input.node.clone();
+            target_output_mut = if let Some(connected_input) = connected_input.upgrade() {
+                let node = connected_input.node.upgrade().unwrap();
 
                 self.execute_node(&node)
                     .await

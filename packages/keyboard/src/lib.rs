@@ -15,30 +15,32 @@ const ALT: &str = "Alt Pressed";
 const META: &str = "Meta Pressed";
 
 #[no_mangle]
-pub fn create_package(package: &mut Package) {
-    package.set_name("Keyboard");
+pub fn create_package() -> Package {
+    let mut package = Package::new("Keyboard");
     package.set_engine(setup_engine());
 
     for c in 'A'..'Z' {
         package.add_event_schema(
             &c.to_string(),
-            |node| {
-                node.add_exec_output(PRESSED);
-                node.add_exec_output(RELEASED);
-
-                node.add_data_output(SHIFT, false.into());
-                node.add_data_output(CTRL, false.into());
-                node.add_data_output(ALT, false.into());
-                node.add_data_output(META, false.into());
+            |s| {
+                s.exec_output(PRESSED);
+                s.exec_output(RELEASED);
+                
+                s.data_output(SHIFT, false.into());
+                s.data_output(CTRL, false.into());
+                s.data_output(ALT, false.into());
+                s.data_output(META, false.into());
             },
-            fire_fn!(|node, event: KeyEvent| {
-                node.set_output(SHIFT, event.shift_pressed.into());
-                node.set_output(CTRL, event.ctrl_pressed.into());
-                node.set_output(ALT, event.alt_pressed.into());
-                node.set_output(META, event.meta_pressed.into());
+            fire_fn!(|io, e: KeyEvent| {
+                io.set_bool(SHIFT, e.shift_pressed);
+                io.set_bool(CTRL, e.ctrl_pressed);
+                io.set_bool(ALT, e.alt_pressed);
+                io.set_bool(META, e.meta_pressed);
 
-                Some(if event.pressed { PRESSED } else { RELEASED })
+                Some(if e.pressed { PRESSED } else { RELEASED })
             }),
         );
     }
+
+    package
 }

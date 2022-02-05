@@ -44,7 +44,7 @@ export const ConnectionRender = observer(() => {
   return (
     <svg className="w-full h-full transform">
       <g>
-        {graph.nodes.map((n) =>
+        {Object.values(graph.nodes).map((n) =>
           n.inputs.map((i) => {
             if (!i.connected) return null;
 

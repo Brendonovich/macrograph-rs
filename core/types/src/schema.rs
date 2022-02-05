@@ -6,10 +6,15 @@ use tokio::sync::Mutex;
 
 use weak_table::WeakHashSet;
 
-use crate::{node::Node, types::*, Engine};
+use crate::{
+    node::{BuildSchema, Node},
+    types::*,
+    Engine,
+};
 
 pub struct ExecuteContext {
     pub engine: Option<Arc<Engine>>,
+    pub handle: tokio::runtime::Handle,
 }
 
 pub enum NodeSchemaType {
@@ -65,42 +70,29 @@ impl NodeSchema {
         }
     }
 
-    pub fn build(&self, node: NodeRef) {
+    pub fn build(&self, schema: &mut BuildSchema) {
         use NodeSchemaType::*;
 
         match **self {
             Exec { .. } => {
-                node.add_exec_input("");
-                node.add_exec_output("");
+                schema.exec_input("");
+                schema.exec_output("");
             }
             _ => {}
         }
 
-        (self.build)(node);
+        (self.build)(schema);
     }
 }
 
 #[macro_export]
 macro_rules! exec_fn {
   (|$t:ident, $ctx:ident| async $($body:tt)*) => {{
-    |$t, $ctx| Box::pin(async move {
-      let _handle = if let Some(_engine) = &$ctx.engine {
-        let handle = _engine.runtime.handle().clone();
-        Some(handle)
-      } else {
-        None
-      };
-
-      if let Some(_handle) = _handle {
-        let _guard = _handle.enter();
-
-        let _res = async $($body)*.await;
-        
-        _res
-      } else {
-        async $($body)*.await
-      }
-    })
+    |$t, $ctx|
+        Box::pin(async move {
+            let _guard = $ctx.handle.enter();
+            async $($body)*.await
+       })
   }};
 }
 

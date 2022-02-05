@@ -1,4 +1,3 @@
-use futures::future::BoxFuture;
 use std::{
     any::Any,
     ops::{Deref, DerefMut},
@@ -27,8 +26,8 @@ impl Event {
 
 pub struct EngineContext {
     pub event_channel: UnboundedSender<Event>,
-    pub handle: tokio::runtime::Handle,
     package: String,
+    pub handle: tokio::runtime::Handle,
 }
 
 impl EngineContext {
@@ -38,26 +37,29 @@ impl EngineContext {
     }
 
     pub fn new(
-        package: &str,
-        channel: &UnboundedSender<Event>,
+        package: String,
+        channel: UnboundedSender<Event>,
         handle: tokio::runtime::Handle,
     ) -> Self {
         Self {
-            package: package.to_string(),
-            event_channel: channel.clone(),
+            package,
+            event_channel: channel,
             handle,
         }
     }
 }
 
+// it's possible that this could make IO and timer operations unusable
+// since we are not blocking on the runtime, but instead the handler.
 #[macro_export]
 macro_rules! run_fn {
     ($name:ident) => {
-        |e, ctx| Box::pin($name(e, ctx));
+        |e, ctx| {
+            let handle = ctx.handle.clone();
+            handle.block_on($name(e, ctx))
+        };
     };
 }
-
-type RunFn = fn(engine: EngineRef, ctx: EngineContext) -> BoxFuture<'static, ()>;
 
 pub struct EngineState();
 pub struct EngineStateGuard<'a, T> {
@@ -79,9 +81,10 @@ impl<'a, T: 'static> DerefMut for EngineStateGuard<'a, T> {
     }
 }
 
+type RunFn = fn(engine: EngineRef, ctx: EngineContext);
+
 pub struct Engine {
     state: Arc<Mutex<Box<dyn Any + Send>>>,
-    pub runtime: tokio::runtime::Runtime,
     pub run: RunFn,
 }
 
@@ -89,7 +92,6 @@ impl Engine {
     pub fn new<S: 'static + Send>(state: S, run: RunFn) -> Self {
         Self {
             state: Arc::new(Mutex::new(Box::new(state))),
-            runtime: tokio::runtime::Runtime::new().unwrap(),
             run,
         }
     }
@@ -101,3 +103,7 @@ impl Engine {
         }
     }
 }
+
+// pub trait EngineTrait {
+//     pub async fn run(&self, ctx: EngineContext);
+// }

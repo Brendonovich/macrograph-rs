@@ -1,8 +1,9 @@
-import { makeAutoObservable } from "mobx";
+import { makeAutoObservable, runInAction } from "mobx";
 import { Input, Output, Position } from "@macrograph/core-types";
 
 import { NodeSchema } from "./NodeSchema";
 import { DataInput, DataOutput, ExecInput, ExecOutput } from "./Pin";
+import { send } from "~/utils";
 
 interface NodeArgs {
   id: number;

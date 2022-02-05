@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(TS, Serialize, Deserialize, Debug, Clone)]
@@ -39,6 +39,10 @@ impl Value {
             _ => None,
         }
     }
+    
+    pub fn is_same_type(left: &Self, right: &Self) -> bool {
+        std::mem::discriminant(left) == std::mem::discriminant(right)
+    }
 }
 
 impl std::fmt::Display for Value {
@@ -69,10 +73,15 @@ impl From<String> for Value {
         Value::String(value)
     }
 }
+impl From<&String> for Value {
+    fn from(value: &String) -> Value {
+        Value::String(value.into())
+    }
+}
 
 impl From<&str> for Value {
     fn from(value: &str) -> Value {
-        Value::String(value.to_string())
+        Value::String(value.into())
     }
 }
 

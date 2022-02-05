@@ -3,7 +3,7 @@ import { observer } from "mobx-react-lite";
 import { NodeSchemaType } from "@macrograph/core-types";
 import { useCallback } from "react";
 
-import { NodeProvider } from "~/contexts";
+import { NodeProvider, useCurrentGraph } from "~/contexts";
 import {
   Node as NodeModel,
   DataInput as DataInputModel,
@@ -24,6 +24,7 @@ const SchemaTypeColours: Record<NodeSchemaType, string> = {
 };
 
 export const Node = observer<Props>(({ node }) => {
+  const graph = useCurrentGraph();
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       node.setPosition({
@@ -49,10 +50,20 @@ export const Node = observer<Props>(({ node }) => {
       >
         <div
           className={clsx(
-            "h-6 px-2 pt-1 text-md font-medium cursor-pointer",
+            "h-6 px-2 pt-1 text-md font-medium cursor-pointer outline-none",
             SchemaTypeColours[node.schema.type]
           )}
+          onKeyDown={(e) => {
+            switch (e.key) {
+              case "Delete": {
+                graph.deleteNode(node.id);
+                break;
+              }
+            }
+          }}
+          tabIndex={-1}
           onMouseDown={(e) => {
+            e.currentTarget.focus();
             e.stopPropagation();
             e.preventDefault();
             switch (e.button) {

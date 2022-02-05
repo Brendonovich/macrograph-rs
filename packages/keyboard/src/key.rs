@@ -1,5 +1,4 @@
 use rdev::Key as RDevKey;
-use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Clone)]

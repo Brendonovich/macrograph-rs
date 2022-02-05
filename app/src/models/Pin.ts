@@ -15,12 +15,13 @@ export class DataInput {
     makeAutoObservable(this);
   }
 
-  async disconnect() {
-    await send("DisconnectIO", {
-      node: this.node.id,
-      io: this.name,
-      is_input: true,
-    });
+  async disconnect(_send = true) {
+    if (_send)
+      await send("DisconnectIO", {
+        node: this.node.id,
+        io: this.name,
+        is_input: true,
+      });
 
     runInAction(() => {
       this.connection?.connections.splice(
@@ -77,20 +78,17 @@ export class DataInput {
 export class DataOutput {
   connections: DataInput[] = [];
 
-  constructor(
-    public node: Node,
-    public name: string,
-    public type: Value
-  ) {
+  constructor(public node: Node, public name: string, public type: Value) {
     makeAutoObservable(this);
   }
 
-  async disconnect() {
-    await send("DisconnectIO", {
-      node: this.node.id,
-      io: this.name,
-      is_input: true,
-    });
+  async disconnect(_send = true) {
+    if (_send)
+      await send("DisconnectIO", {
+        node: this.node.id,
+        io: this.name,
+        is_input: false,
+      });
 
     runInAction(() => {
       this.connections.forEach((c) => (c.connection = null));
@@ -110,12 +108,13 @@ export class ExecInput {
     makeAutoObservable(this);
   }
 
-  async disconnect() {
-    await send("DisconnectIO", {
-      node: this.node.id,
-      io: this.name,
-      is_input: true,
-    });
+  async disconnect(_send = true) {
+    if (_send)
+      await send("DisconnectIO", {
+        node: this.node.id,
+        io: this.name,
+        is_input: true,
+      });
 
     runInAction(() => {
       if (this.connection) this.connection.connection = null;
@@ -135,12 +134,13 @@ export class ExecOutput {
     makeAutoObservable(this);
   }
 
-  async disconnect() {
-    await send("DisconnectIO", {
-      node: this.node.id,
-      io: this.name,
-      is_input: true,
-    });
+  async disconnect(_send = true) {
+    if (_send)
+      await send("DisconnectIO", {
+        node: this.node.id,
+        io: this.name,
+        is_input: false,
+      });
 
     runInAction(() => {
       if (this.connection) this.connection.connection = null;

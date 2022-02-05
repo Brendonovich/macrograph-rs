@@ -21,6 +21,9 @@ pub enum Request {
         schema: String,
         position: Position,
     },
+    DeleteNode {
+        node: i32,
+    },
     SetDefaultValue {
         node: i32,
         input: String,
@@ -50,6 +53,7 @@ pub enum Response {
         inputs: Vec<RawInput>,
         outputs: Vec<RawOutput>,
     },
+    DeleteNode,
     SetDefaultValue,
     ConnectIO,
     DisconnectIO,

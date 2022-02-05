@@ -6,6 +6,7 @@ pub struct Package {
     pub name: String,
     pub schemas: Vec<Arc<NodeSchema>>,
     pub engine: Option<EngineRef>,
+    pub runtime: tokio::runtime::Runtime,
 }
 
 impl Package {
@@ -14,6 +15,11 @@ impl Package {
             name: name.into(),
             schemas: vec![],
             engine: None,
+            runtime: tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(2)
+                .enable_all()
+                .build()
+                .unwrap(),
         }
     }
 
@@ -45,12 +51,4 @@ impl Package {
     pub fn schema(&self, name: &str) -> Option<&Arc<NodeSchema>> {
         self.schemas.iter().find(|s| s.name == name)
     }
-}
-
-pub trait PackageTrait {
-    fn create(&self, pkg: &mut Package);
-}
-
-pub struct TestStruct {
-    pub func: fn(Arc<i32>) -> i32,
 }

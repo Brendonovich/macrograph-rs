@@ -58,7 +58,7 @@ function App() {
     core.loadPackages().then(() => {
       setReady(true);
       // const keyboardSchema = core.schema("keyboard", "A")!;
-      const obsSchema = core.schema("obs", "Set Current Scene")!;
+      // const obsSchema = core.schema("obs", "Set Current Scene")!;
 
       // core.graph.createNode(keyboardSchema, { x: 0, y: 0 });
       // core.graph.createNode(obsSchema, { x: 100, y: 100 });
@@ -179,7 +179,7 @@ function App() {
                 e.preventDefault();
               }}
             >
-              {core.graph.nodes.map((node) => (
+              {Object.values(core.graph.nodes).map((node) => (
                 <Node node={node} key={node.id} />
               ))}
             </div>

@@ -25,7 +25,7 @@ async fn run(engine: EngineRef, ctx: EngineContext) {
 
     while let Some(event) = receiver.lock().await.recv().await {
         let mut engine_state = engine.state::<State>().await;
-
+        
         match event.event_type {
             EventType::KeyRelease(key) => {
                 match key {

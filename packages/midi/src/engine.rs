@@ -1,4 +1,4 @@
-use macrograph_core::{run_fn, Engine, EngineContext, EngineRef};
+use macrograph_core_types::{run_fn, Engine, EngineContext, EngineRef};
 use midir::{MidiInput, MidiOutput};
 
 async fn start(_: EngineRef, _: EngineContext) {
