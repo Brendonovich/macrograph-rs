@@ -30,9 +30,11 @@ async fn main() {
     _ => "so",
   };
 
-  for package in ["logic", "utils", "keyboard" , "obs"] {
-    let path = Path::new(&env::current_exe().unwrap())
-      .join(format!("../libmg_pkg_{}.{}", package, lib_extension))
+  for package in ["logic", "utils", "keyboard", "obs"] {
+    let mut current_exe_path = env::current_exe().unwrap();
+    current_exe_path.pop();
+    let path = Path::new(&current_exe_path)
+      .join(format!("libmg_pkg_{}.{}", package, lib_extension))
       .canonicalize()
       .unwrap();
 
