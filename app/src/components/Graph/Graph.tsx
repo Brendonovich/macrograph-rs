@@ -5,6 +5,7 @@ import { Node } from "./Node";
 import { UI } from "~/stores";
 import { ConnectionRender, SchemaMenu } from "~/components/Graph";
 import { useCurrentGraph } from "~/contexts";
+import { observer } from "mobx-react-lite";
 
 enum PanState {
   None,
@@ -12,7 +13,7 @@ enum PanState {
   Active,
 }
 
-export const Graph = () => {
+export const Graph = observer(() => {
   const graph = useCurrentGraph();
 
   const graphRef = useRef<HTMLDivElement>(null);
@@ -161,4 +162,4 @@ export const Graph = () => {
       </div>
     </div>
   );
-};
+});
