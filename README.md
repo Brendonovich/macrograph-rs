@@ -15,8 +15,7 @@ This project is split up into multiple parts to allow for multiple uses:
 3. Run `cargo build`
 4. Run `pnpm tauri dev`
 
-All the packages are loaded at runtime, including the OBS package. Currently, a package engine crashing will cause the entire app to crash, so either have OBS running with an OBS Websocket v5 alpha installed or remove the `"obs"` entry in `app/src-tauri/src/main.rs`.
-
+All the packages are loaded at runtime, including the OBS package. Currently, a package engine crashing will cause the entire app to crash, so either have OBS running with an OBS Websocket v5 alpha installed or remove the `"obs"` entry in [the app's main file](app/src-tauri/src/main.rs).
 ## [Figma Designs](https://www.figma.com/file/VO7zmohUtZSqC1eIyGUuN3/MacroGraph-Designs)
 
 The app mostly follows these designs, highly based off of Unreal Engine's blueprints
