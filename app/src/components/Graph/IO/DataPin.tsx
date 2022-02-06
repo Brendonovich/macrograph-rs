@@ -18,6 +18,14 @@ const DataPinTypeColours: Record<
     active: "border-pink-string bg-pink-string",
     base: "border-pink-string hover:bg-pink-string",
   },
+  int: {
+    active: "border-int-blue bg-int-blue",
+    base: "border-int-blue hover:bg-int-blue",
+  },
+  float: {
+    active: "border-green-float bg-green-float",
+    base: "border-green-float hover:bg-green-float",
+  },
 };
 
 interface Props {

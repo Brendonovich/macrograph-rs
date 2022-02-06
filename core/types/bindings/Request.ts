@@ -1,4 +1,4 @@
 import type { Value } from "./Value";
 import type { Position } from "./Position";
 
-export type Request = { type: "CreateNode", data: { package: string, schema: string, position: Position, } } | { type: "DeleteNode", data: { node: number, } } | { type: "SetDefaultValue", data: { node: number, input: string, value: Value, } } | { type: "ConnectIO", data: { output_node: number, output: string, input_node: number, input: string, } } | { type: "DisconnectIO", data: { node: number, io: string, is_input: boolean, } } | { type: "GetPackages" } | { type: "Reset" };
+export type Request = { type: "CreateNode", data: { graph: number, package: string, schema: string, position: Position, } } | { type: "DeleteNode", data: { graph: number, node: number, } } | { type: "SetDefaultValue", data: { graph: number, node: number, input: string, value: Value, } } | { type: "ConnectIO", data: { graph: number, output_node: number, output: string, input_node: number, input: string, } } | { type: "DisconnectIO", data: { graph: number, node: number, io: string, is_input: boolean, } } | { type: "GetPackages" } | { type: "GetProject" } | { type: "Reset", data: { graph: number, } };

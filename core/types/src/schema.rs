@@ -3,8 +3,7 @@ use std::{
     sync::{Arc, Weak},
 };
 use tokio::sync::Mutex;
-
-use weak_table::WeakHashSet;
+use weak_table::PtrWeakHashSet;
 
 use crate::{
     node::{BuildSchema, Node},
@@ -27,7 +26,7 @@ pub struct NodeSchema {
     pub name: String,
     pub package: String,
     pub build: BuildFn,
-    pub instances: Mutex<WeakHashSet<Weak<Node>>>,
+    pub instances: Mutex<PtrWeakHashSet<Weak<Node>>>,
     pub inner: NodeSchemaType,
 }
 
@@ -46,7 +45,7 @@ impl NodeSchema {
             build,
             package: String::new(),
             inner: NodeSchemaType::Exec { execute },
-            instances: Mutex::new(WeakHashSet::new()),
+            instances: Mutex::new(PtrWeakHashSet::new()),
         }
     }
 
@@ -56,7 +55,7 @@ impl NodeSchema {
             build,
             package: String::new(),
             inner: NodeSchemaType::Base { execute },
-            instances: Mutex::new(WeakHashSet::new()),
+            instances: Mutex::new(PtrWeakHashSet::new()),
         }
     }
 
@@ -66,7 +65,7 @@ impl NodeSchema {
             build,
             package: String::new(),
             inner: NodeSchemaType::Event { fire },
-            instances: Mutex::new(WeakHashSet::new()),
+            instances: Mutex::new(PtrWeakHashSet::new()),
         }
     }
 

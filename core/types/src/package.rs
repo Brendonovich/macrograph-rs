@@ -15,6 +15,7 @@ impl Package {
             name: name.into(),
             schemas: vec![],
             engine: None,
+            // Multithread with 1 worker thread seems to work whereas current thread doesn't
             runtime: tokio::runtime::Builder::new_multi_thread()
                 .worker_threads(1)
                 .enable_all()

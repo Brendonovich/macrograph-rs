@@ -1,7 +1,8 @@
 import { makeAutoObservable, runInAction } from "mobx";
-import { Position } from "@macrograph/core-types";
+import { Position, Graph as RawGraph } from "@macrograph/core-types";
 
 import {
+  Core,
   DataInput,
   DataOutput,
   ExecInput,
@@ -11,11 +12,31 @@ import {
 } from ".";
 import { pinsCanConnect, send } from "~/utils";
 
+interface Args extends RawGraph {
+  core: Core;
+}
+
 export class Graph {
+  id: number;
+  name: string;
   nodes: Record<number, Node> = {};
 
-  constructor() {
+  constructor(data: Args) {
     makeAutoObservable(this);
+
+    this.id = data.id;
+    this.name = data.name;
+    this.nodes = data.nodes.reduce(
+      (acc, n) => ({
+        ...acc,
+        [n.id]: new Node({
+          ...n,
+          graph: this,
+          schema: data.core.schema(n.schema.package, n.schema.name)!,
+        }),
+      }),
+      {}
+    );
   }
 
   addNode(node: Node) {
@@ -29,6 +50,7 @@ export class Graph {
     if (!pinsCanConnect(output, input)) return;
 
     await send("ConnectIO", {
+      graph: this.id,
       output_node: output.node.id,
       output: output.name,
       input_node: input.node.id,
@@ -61,6 +83,7 @@ export class Graph {
 
   async createNode(schema: NodeSchema, position: Position) {
     const res = await send("CreateNode", {
+      graph: this.id,
       package: schema.package.name,
       schema: schema.name,
       position,
@@ -69,6 +92,7 @@ export class Graph {
     runInAction(() => {
       const node = new Node({
         ...res,
+        graph: this,
         schema,
         position,
       });
@@ -79,6 +103,7 @@ export class Graph {
 
   async deleteNode(id: number) {
     await send("DeleteNode", {
+      graph: this.id,
       node: id,
     });
 

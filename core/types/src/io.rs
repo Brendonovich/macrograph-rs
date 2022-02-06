@@ -1,7 +1,8 @@
 use arc_swap::ArcSwap;
+use weak_table::PtrWeakHashSet;
 
-use crate::{types::NodeRef, node::Node};
 use crate::value::Value;
+use crate::{node::Node, types::NodeRef};
 use std::sync::{Arc, Mutex, Weak};
 
 pub struct DataInput {
@@ -52,11 +53,11 @@ impl DataInput {
 
         if let Some(input_connected_output) = input_connected_output.upgrade() {
             let mut inputs = input_connected_output.connected_inputs.lock().unwrap();
-            let index = inputs
+            let input = inputs
                 .iter()
-                .position(|i| std::ptr::eq(i.as_ref(), self))
+                .find(|i| std::ptr::eq(i.as_ref(), self))
                 .unwrap();
-            inputs.swap_remove(index);
+            inputs.remove(&input);
         }
 
         *input_connected_output = Weak::new();
@@ -121,7 +122,7 @@ pub struct DataOutput {
     pub name: String,
     pub value: ArcSwap<Value>,
     pub node: Weak<Node>,
-    pub connected_inputs: Mutex<Vec<Arc<DataInput>>>,
+    pub connected_inputs: Mutex<PtrWeakHashSet<Weak<DataInput>>>,
 }
 
 impl DataOutput {
@@ -130,16 +131,16 @@ impl DataOutput {
             name,
             value: ArcSwap::from_pointee(value),
             node: Arc::downgrade(node),
-            connected_inputs: Mutex::new(vec![]),
+            connected_inputs: Mutex::new(PtrWeakHashSet::new()),
         }
     }
 
     pub fn set_value(&self, value: Value) {
         self.value.swap(Arc::new(value));
     }
-    
+
     pub fn connect_input(&self, input: &Arc<DataInput>) {
-        self.connected_inputs.lock().unwrap().push(input.clone());
+        self.connected_inputs.lock().unwrap().insert(input.clone());
     }
 
     pub fn disconnect(&self) {

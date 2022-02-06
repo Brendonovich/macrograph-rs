@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { Observer, observer } from "mobx-react-lite";
 import { FC } from "react";
 
-import { CheckBox, TextInput } from "~/components/ui";
+import { CheckBox, FloatInput, IntInput, TextInput } from "~/components/ui";
 import { DataInput as DataInputModel } from "~/models";
 import { DataPin } from ".";
 
@@ -16,7 +16,7 @@ const UnconnectedInput = observer<Props>(({ input }) => {
         <CheckBox
           className={className}
           value={input.defaultValue.value}
-          onChange={(v) => input.setDefaultValue(v)}
+          onChange={(value) => input.setDefaultValue({ type: "bool", value })}
         />
       );
     }
@@ -26,7 +26,33 @@ const UnconnectedInput = observer<Props>(({ input }) => {
           <TextInput
             className={className}
             value={input.defaultValue.value}
-            onChange={(v) => input.setDefaultValue(v)}
+            onChange={(value) =>
+              input.setDefaultValue({ type: "string", value })
+            }
+          />
+        </div>
+      );
+    }
+    case "int": {
+      return (
+        <div className="w-16">
+          <IntInput
+            className={className}
+            value={input.defaultValue.value}
+            onChange={(value) => input.setDefaultValue({ type: "int", value })}
+          />
+        </div>
+      );
+    }
+    case "float": {
+      return (
+        <div className="w-16">
+          <FloatInput
+            className={className}
+            value={input.defaultValue.value}
+            onChange={(value) =>
+              input.setDefaultValue({ type: "float", value })
+            }
           />
         </div>
       );

@@ -9,7 +9,7 @@ use ts_rs::TS;
 
 use crate::{io::*, schema::NodeSchema, types::*, Value};
 
-#[derive(TS, Serialize, Deserialize, Debug)]
+#[derive(TS, Serialize, Deserialize, Debug, Clone)]
 #[ts(export)]
 pub struct Position {
     x: f64,
@@ -18,10 +18,11 @@ pub struct Position {
 
 pub struct Node {
     pub id: i32,
+    pub graph_id: i32,
     pub position: Position,
     pub schema: Arc<NodeSchema>,
-    // IO is owned by the node, and since IO holds a weak reference to the node
-    // everything will drop normally.
+    // Structs referencing IO must not hold strong references
+    // Dropping the node should also drop the IO, so only use Weaks
     pub inputs: Mutex<Vec<Input>>,
     pub outputs: Mutex<Vec<Output>>,
 }
@@ -77,6 +78,22 @@ impl IOData {
     pub fn set_bool(&mut self, name: &str, value: bool) {
         self.outputs.insert(name.to_string(), value.into());
     }
+
+    pub fn get_float(&self, name: &str) -> Option<f64> {
+        self.inputs.get(name).and_then(|v| v.as_float())
+    }
+
+    pub fn set_float(&mut self, name: &str, value: f64) {
+        self.outputs.insert(name.to_string(), value.into());
+    }
+
+    pub fn get_int(&self, name: &str) -> Option<i32> {
+        self.inputs.get(name).and_then(|v| v.as_int())
+    }
+
+    pub fn set_int(&mut self, name: &str, value: i32) {
+        self.outputs.insert(name.to_string(), value.into());
+    }
 }
 
 impl BuildSchema {
@@ -107,11 +124,12 @@ impl BuildSchema {
 }
 
 impl Node {
-    pub fn new(id: i32, schema: &Arc<NodeSchema>, position: Position) -> NodeRef {
+    pub fn new(id: i32, graph_id: i32, schema: &Arc<NodeSchema>, position: Position) -> NodeRef {
         let schema = schema.clone();
 
         let node = Arc::new(Self {
             id,
+            graph_id,
             position,
             schema: schema.clone(),
             inputs: Mutex::new(vec![]),

@@ -18,6 +18,7 @@ export class DataInput {
   async disconnect(_send = true) {
     if (_send)
       await send("DisconnectIO", {
+        graph: this.node.graph.id,
         node: this.node.id,
         io: this.name,
         is_input: true,
@@ -34,34 +35,19 @@ export class DataInput {
 
   private defaultValueDebounce: any = null;
 
-  async setDefaultValue(value: Value["value"]) {
-    this.defaultValue.value = value;
+  async setDefaultValue(value: Value) {
+    this.defaultValue = value;
 
     if (this.defaultValueDebounce) {
       clearTimeout(this.defaultValueDebounce);
     }
 
     setTimeout(async () => {
-      let valueObj: Value;
-      switch (typeof value) {
-        case "string":
-          valueObj = {
-            type: "string",
-            value,
-          };
-          break;
-        case "boolean":
-          valueObj = {
-            type: "bool",
-            value,
-          };
-          break;
-      }
-
       await send("SetDefaultValue", {
+        graph: this.node.graph.id,
         node: this.node.id,
         input: this.name,
-        value: valueObj,
+        value: value,
       });
     }, 100);
   }
@@ -85,6 +71,7 @@ export class DataOutput {
   async disconnect(_send = true) {
     if (_send)
       await send("DisconnectIO", {
+        graph: this.node.graph.id,
         node: this.node.id,
         io: this.name,
         is_input: false,
@@ -111,6 +98,7 @@ export class ExecInput {
   async disconnect(_send = true) {
     if (_send)
       await send("DisconnectIO", {
+        graph: this.node.graph.id,
         node: this.node.id,
         io: this.name,
         is_input: true,
@@ -137,6 +125,7 @@ export class ExecOutput {
   async disconnect(_send = true) {
     if (_send)
       await send("DisconnectIO", {
+        graph: this.node.graph.id,
         node: this.node.id,
         io: this.name,
         is_input: false,

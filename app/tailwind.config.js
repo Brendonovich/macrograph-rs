@@ -12,9 +12,11 @@ module.exports = {
         },
         blue: {
           exec: "#2163EB",
+          int: "#30F3DB"
         },
         green: {
           pure: "#008E62",
+          float: "#00AE75",
         },
         gray: {
           graph: "#262626",

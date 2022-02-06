@@ -22,6 +22,12 @@ pub struct RawNodeSchema {
     pub t: RawNodeSchemaType,
 }
 
+#[derive(TS, Serialize, Debug)]
+pub struct RawNodeSchemaRef {
+    pub name: String,
+    pub package: String,
+}
+
 impl From<&NodeSchema> for RawNodeSchema {
     fn from(schema: &NodeSchema) -> Self {
         Self {
@@ -32,6 +38,15 @@ impl From<&NodeSchema> for RawNodeSchema {
                 NodeSchemaType::Exec { .. } => RawNodeSchemaType::Exec,
                 NodeSchemaType::Event { .. } => RawNodeSchemaType::Event,
             },
+        }
+    }
+}
+
+impl From<&NodeSchema> for RawNodeSchemaRef {
+    fn from(schema: &NodeSchema) -> Self {
+        Self {
+            name: schema.name.clone(),
+            package: schema.package.clone(),
         }
     }
 }

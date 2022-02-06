@@ -1,8 +1,8 @@
 use std::any::Any;
-use std::ffi::OsStr;
+use std::collections::HashMap;
 
 use crate::api::{Request, Response};
-use crate::graph::Graph;
+use macrograph_core_types::graph::Graph;
 use macrograph_core_types::io::{Input, Output};
 use macrograph_core_types::node::Position;
 use macrograph_core_types::schema::NodeSchemaType;
@@ -11,13 +11,14 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot;
 
 pub struct Core {
-    pub graph: Graph,
+    pub graphs: HashMap<i32, Graph>,
     pub packages: Vec<Package>,
     request_channel: (
         UnboundedSender<WrappedRequest>,
         UnboundedReceiver<WrappedRequest>,
     ),
     event_channel: (UnboundedSender<Event>, UnboundedReceiver<Event>),
+    graph_id_counter: i32,
 }
 
 struct WrappedRequest {
@@ -59,12 +60,32 @@ impl CoreController {
 
 impl Core {
     pub fn new() -> Self {
-        Self {
-            graph: Graph::new(),
+        let mut ret = Self {
+            graphs: HashMap::new(),
             packages: vec![],
             request_channel: unbounded_channel(),
             event_channel: unbounded_channel(),
-        }
+            graph_id_counter: 0,
+        };
+
+        ret.create_graph("Graph 0".into());
+
+        ret
+    }
+
+    pub fn create_graph(&mut self, name: String) -> i32 {
+        let id = self.graph_id_counter;
+        self.graph_id_counter += 1;
+        self.graphs.insert(id, Graph::new(id, name));
+        id
+    }
+
+    pub fn graph(&self, id: i32) -> Option<&Graph> {
+        self.graphs.get(&id)
+    }
+
+    pub fn graph_mut(&mut self, id: i32) -> Option<&mut Graph> {
+        self.graphs.get_mut(&id)
     }
 
     pub fn load_library(&mut self, path: &str) {
@@ -106,11 +127,15 @@ impl Core {
 
         let res = match request.inner {
             CreateNode {
+                graph,
                 package,
                 schema,
                 position,
             } => {
-                let node = self.create_node(&package, &schema, position).await.unwrap();
+                let node = self
+                    .create_node(graph, &package, &schema, position)
+                    .await
+                    .unwrap();
                 let inputs = node.inputs.lock().unwrap();
                 let outputs = node.outputs.lock().unwrap();
 
@@ -120,29 +145,41 @@ impl Core {
                     outputs: outputs.iter().map(|o| o.into()).collect(),
                 }
             }
-            DeleteNode { node } => {
-                self.delete_node(node);
+            DeleteNode { graph, node } => {
+                self.delete_node(graph, node);
                 Response::DeleteNode
             }
             ConnectIO {
+                graph,
                 output_node,
                 output,
                 input_node,
                 input,
             } => {
-                self.connect_io(output_node, &output, input_node, &input)
+                self.connect_io(graph, output_node, &output, input_node, &input)
                     .unwrap();
 
                 Response::ConnectIO
             }
-            DisconnectIO { node, io, is_input } => {
-                self.disconnect_io(node, &io, is_input).unwrap();
+            DisconnectIO {
+                graph,
+                node,
+                io,
+                is_input,
+            } => {
+                self.disconnect_io(graph, node, &io, is_input).unwrap();
 
                 Response::DisconnectIO
             }
-            SetDefaultValue { node, input, value } => {
+            SetDefaultValue {
+                graph,
+                node,
+                input,
+                value,
+            } => {
                 let input = self
-                    .graph
+                    .graph(graph)
+                    .unwrap()
                     .node(node)
                     .unwrap()
                     .find_data_input(&input)
@@ -155,8 +192,11 @@ impl Core {
             GetPackages => Response::GetPackages {
                 packages: self.packages.iter().map(|p| p.into()).collect(),
             },
-            Reset => {
-                self.graph.reset();
+            GetProject => Response::GetProject {
+                graphs: self.graphs.values().map(|g| g.into()).collect(),
+            },
+            Reset { graph } => {
+                self.graph_mut(graph).unwrap().reset();
                 Response::Reset
             }
         };
@@ -166,6 +206,7 @@ impl Core {
 
     pub(crate) async fn create_node(
         &mut self,
+        graph: i32,
         package: &str,
         schema: &str,
         position: Position,
@@ -174,7 +215,10 @@ impl Core {
 
         if let Some(schema) = schema {
             let schema = schema.clone();
-            let node = self.graph.create_node(&schema, position);
+            let node = self
+                .graph_mut(graph)
+                .unwrap()
+                .create_node(&schema, position);
             let mut instances = schema.instances.lock().await;
 
             instances.insert(node.clone());
@@ -185,19 +229,20 @@ impl Core {
         None
     }
 
-    fn delete_node(&mut self, node: i32) {
-        self.graph.delete_node(node)
+    fn delete_node(&mut self, graph: i32, node: i32) {
+        self.graph_mut(graph).unwrap().delete_node(node)
     }
 
     pub fn connect_io(
         &mut self,
+        graph: i32,
         output_node: i32,
         output: &str,
         input_node: i32,
         input: &str,
     ) -> Result<(), ConnectIOError> {
-        let output_node = self.graph.node(output_node);
-        let input_node = self.graph.node(input_node);
+        let output_node = self.graph(graph).unwrap().node(output_node);
+        let input_node = self.graph(graph).unwrap().node(input_node);
 
         let (output_node, input_node) = match (output_node, input_node) {
             (Some(output_node), Some(input_node)) => (output_node, input_node),
@@ -237,8 +282,14 @@ impl Core {
         Ok(())
     }
 
-    pub fn disconnect_io(&mut self, node: i32, io: &str, is_input: bool) -> Result<(), ()> {
-        let node = self.graph.node(node);
+    pub fn disconnect_io(
+        &mut self,
+        graph: i32,
+        node: i32,
+        io: &str,
+        is_input: bool,
+    ) -> Result<(), ()> {
+        let node = self.graph(graph).unwrap().node(node);
 
         let node = match node {
             Some(node) => node,
@@ -292,7 +343,7 @@ impl Core {
 
             let futures: Vec<_> = nodes
                 .iter()
-                .map(|node| self.fire_node(node.id, &event.data))
+                .map(|node| self.fire_node(node.graph_id, node.id, &event.data))
                 .collect();
 
             futures::future::join_all(futures).await;
@@ -334,12 +385,17 @@ impl Core {
         };
 
         node.parse_io_data(io_data);
-        
+
         res
     }
 
-    pub(crate) async fn fire_node(&self, node_id: i32, data: &Box<dyn Any + Send + Sync>) {
-        let node = self.graph.nodes.get(&node_id).unwrap();
+    pub(crate) async fn fire_node(
+        &self,
+        graph: i32,
+        node_id: i32,
+        data: &Box<dyn Any + Send + Sync>,
+    ) {
+        let node = self.graph(graph).unwrap().nodes.get(&node_id).unwrap();
 
         let fire = match **node.schema {
             NodeSchemaType::Event { fire } => fire,

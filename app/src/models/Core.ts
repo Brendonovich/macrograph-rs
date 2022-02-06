@@ -6,7 +6,7 @@ import { Graph } from "./Graph";
 import { Package } from "./Package";
 
 export class Core {
-  graph: Graph = new Graph();
+  graphs: Record<number, Graph> = {};
   packages: Package[] = [];
 
   constructor() {
@@ -21,7 +21,21 @@ export class Core {
     });
   }
 
-  schema(pkg: string, schema: string) {
-    return this.packages.find((p) => p.name === pkg)?.schema(schema);
+  async loadProject() {
+    const res = await send("GetProject");
+
+    runInAction(() => {
+      this.graphs = res.graphs.reduce(
+        (acc, g) => ({
+          ...acc,
+          [g.id]: new Graph({ ...g, core: this }),
+        }),
+        {}
+      );
+    });
+  }
+
+  schema(pkg: string, name: string) {
+    return this.packages.find((p) => p.name === pkg)?.schema(name);
   }
 }

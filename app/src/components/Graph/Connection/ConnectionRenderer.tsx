@@ -9,6 +9,8 @@ import { Value } from "@macrograph/core-types";
 const DataColourClasses: Record<Value["type"], string> = {
   bool: "text-red-bool",
   string: "text-pink-string",
+  float: "text-green-float",
+  int: "text-blue-int",
 };
 
 export const ConnectionRender = observer(() => {

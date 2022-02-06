@@ -1,20 +1,18 @@
-import { makeAutoObservable, runInAction } from "mobx";
-import { Input, Output, Position } from "@macrograph/core-types";
+import { makeAutoObservable } from "mobx";
+import { Position, Node as RawNode } from "@macrograph/core-types";
 
 import { NodeSchema } from "./NodeSchema";
 import { DataInput, DataOutput, ExecInput, ExecOutput } from "./Pin";
-import { send } from "~/utils";
+import { Graph } from ".";
 
-interface NodeArgs {
-  id: number;
+interface NodeArgs extends Omit<RawNode, "schema" | "graph"> {
+  graph: Graph;
   schema: NodeSchema;
-  position: XY;
-  inputs: Input[];
-  outputs: Output[];
 }
 
 export class Node {
   id: number;
+  graph: Graph;
   position: Position;
   schema: NodeSchema;
   inputs: (DataInput | ExecInput)[];
@@ -26,6 +24,7 @@ export class Node {
     makeAutoObservable(this);
 
     this.id = args.id;
+    this.graph = args.graph;
     this.position = args.position;
     this.schema = args.schema;
     this.inputs = args.inputs.map((i) =>
