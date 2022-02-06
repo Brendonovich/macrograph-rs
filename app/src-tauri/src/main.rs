@@ -3,6 +3,9 @@
   windows_subsystem = "windows"
 )]
 
+use std::env;
+use std::path::Path;
+
 use tauri::Manager;
 
 use macrograph_core::api::{Request, Response};
@@ -20,12 +23,20 @@ async fn core_request(
 #[tokio::main]
 async fn main() {
   let mut core = Core::new();
-  
-  for package in ["logic","utils", "keyboard", "obs"] {
-    core.load_library(&format!(
-      "/Users/brendanallan/github.com/Brendonovich/macrograph/target/debug/libmg_pkg_{}.dylib",
-      package
-    ));
+
+  let lib_extension = match env::consts::OS {
+    "macos" => "dylib",
+    "windows" => "dll",
+    _ => "so",
+  };
+
+  for package in ["logic", "utils", "keyboard", "obs"] {
+    let path = Path::new(&env::current_exe().unwrap())
+      .join(format!("../libmg_pkg_{}.{}", package, lib_extension))
+      .canonicalize()
+      .unwrap();
+
+    core.load_library(&path.to_str().unwrap());
   }
 
   core.setup().await;
