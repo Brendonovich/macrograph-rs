@@ -1,13 +1,13 @@
 use std::{
     collections::HashMap,
-    hash::Hash,
     sync::{Arc, Mutex},
 };
 
+use macrograph_package_api::{BuildSchema, IOProxy, InputSchema, OutputSchema};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{io::*, schema::NodeSchema, types::*, Value};
+use crate::{io::*, schema::NodeSchema, types::*, value::Value};
 
 #[derive(TS, Serialize, Deserialize, Debug, Clone)]
 #[ts(export)]
@@ -27,104 +27,8 @@ pub struct Node {
     pub outputs: Mutex<Vec<Output>>,
 }
 
-impl PartialEq for Node {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Eq for Node {}
-
-impl Hash for Node {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.id.hash(state);
-    }
-}
-
-enum InputSchema {
-    Exec(String),
-    Data(String, Value),
-}
-
-enum OutputSchema {
-    Exec(String),
-    Data(String, Value),
-}
-
-pub struct BuildSchema {
-    inputs: Vec<InputSchema>,
-    outputs: Vec<OutputSchema>,
-}
-
-#[derive(Debug)]
-pub struct IOData {
-    inputs: HashMap<String, Value>,
-    outputs: HashMap<String, Value>,
-}
-
-impl IOData {
-    pub fn get_bool(&self, name: &str) -> Option<bool> {
-        self.inputs.get(name).and_then(|v| v.as_bool())
-    }
-
-    pub fn set_string(&mut self, name: &str, value: &str) {
-        self.outputs.insert(name.to_string(), value.into());
-    }
-
-    pub fn get_string(&self, name: &str) -> Option<String> {
-        self.inputs.get(name).and_then(|v| v.as_string())
-    }
-
-    pub fn set_bool(&mut self, name: &str, value: bool) {
-        self.outputs.insert(name.to_string(), value.into());
-    }
-
-    pub fn get_float(&self, name: &str) -> Option<f64> {
-        self.inputs.get(name).and_then(|v| v.as_float())
-    }
-
-    pub fn set_float(&mut self, name: &str, value: f64) {
-        self.outputs.insert(name.to_string(), value.into());
-    }
-
-    pub fn get_int(&self, name: &str) -> Option<i32> {
-        self.inputs.get(name).and_then(|v| v.as_int())
-    }
-
-    pub fn set_int(&mut self, name: &str, value: i32) {
-        self.outputs.insert(name.to_string(), value.into());
-    }
-}
-
-impl BuildSchema {
-    fn new() -> Self {
-        Self {
-            inputs: Vec::new(),
-            outputs: Vec::new(),
-        }
-    }
-
-    pub fn exec_input(&mut self, name: &str) {
-        self.inputs.push(InputSchema::Exec(name.into()));
-    }
-
-    pub fn exec_output(&mut self, name: &str) {
-        self.outputs.push(OutputSchema::Exec(name.into()));
-    }
-
-    pub fn data_input(&mut self, name: &str, default_value: Value) {
-        self.inputs
-            .push(InputSchema::Data(name.into(), default_value));
-    }
-
-    pub fn data_output(&mut self, name: &str, default_value: Value) {
-        self.outputs
-            .push(OutputSchema::Data(name.into(), default_value));
-    }
-}
-
 impl Node {
-    pub fn new(id: i32, graph_id: i32, schema: &Arc<NodeSchema>, position: Position) -> NodeRef {
+    pub fn new(id: i32, graph_id: i32, schema: &Arc<NodeSchema>, position: Position) -> Arc<Self> {
         let schema = schema.clone();
 
         let node = Arc::new(Self {
@@ -316,7 +220,7 @@ impl Node {
         })
     }
 
-    pub fn get_io_data(&self) -> IOData {
+    pub fn get_io_data(&self) -> IOProxy {
         let mut inputs = HashMap::new();
 
         for input in self.inputs.lock().unwrap().iter() {
@@ -328,13 +232,13 @@ impl Node {
             };
         }
 
-        IOData {
+        IOProxy {
             inputs,
             outputs: HashMap::new(),
         }
     }
 
-    pub fn parse_io_data(self: &Arc<Self>, data: IOData) {
+    pub fn parse_io_data(self: &Arc<Self>, data: IOProxy) {
         let outputs = self.outputs.lock().unwrap();
 
         for (name, value) in data.outputs.into_iter() {

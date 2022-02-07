@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(TS, Serialize, Deserialize, Debug, Clone)]
-#[ts(export)]
+#[ts(export, export_to="../bindings/Value.ts")]
 #[serde(rename_all = "camelCase", tag = "type", content = "value")]
 pub enum Value {
     Int(i32),

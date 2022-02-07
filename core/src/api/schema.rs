@@ -1,7 +1,8 @@
+use macrograph_package_api::NodeSchemaType;
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::schema::{NodeSchema, NodeSchemaType};
+use crate::schema::NodeSchema;
 
 #[derive(TS, Serialize, Debug)]
 #[ts(export)]

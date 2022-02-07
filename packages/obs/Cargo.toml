@@ -8,7 +8,7 @@ name = "mg_pkg_obs"
 crate-type = ["dylib"]
 
 [dependencies]
-macrograph-core-types = { path = "../../core/types" }
+macrograph-package-api = { path = "../../core/package-api" }
 obws = { git = "https://github.com/dnaka91/obws.git", branch = "v5-api", features = ["events"] }
 futures = "0.3.19"
 tokio = {version = "1.16.1", features = ["rt", "rt-multi-thread"]}

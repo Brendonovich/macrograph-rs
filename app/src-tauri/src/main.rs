@@ -8,9 +8,8 @@ use std::path::Path;
 
 use tauri::Manager;
 
-use macrograph_core::api::{Request, Response};
-use macrograph_core::core::CoreController;
-use macrograph_core::Core;
+use macrograph::api::{Request, Response};
+use macrograph::core::{Core, CoreController};
 
 #[tauri::command]
 async fn core_request(
@@ -41,13 +40,16 @@ async fn main() {
     core.load_library(&path.to_str().unwrap());
   }
 
-  core.setup().await;
+  println!("1");
+  core.setup();
+  println!("2");
 
   let controller = core.get_controller();
 
   tokio::spawn(async move {
     core.start().await;
   });
+  println!("3");
 
   tauri::Builder::default()
     .manage(controller)

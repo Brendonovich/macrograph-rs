@@ -1,12 +1,10 @@
 use std::sync::Arc;
 
+use macrograph_package_api::Value;
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::{
-    io::{Input, Output},
-    Value,
-};
+use crate::io::{Input, Output};
 
 #[derive(TS, Serialize, Debug)]
 #[ts(export)]

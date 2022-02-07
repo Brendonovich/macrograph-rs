@@ -11,7 +11,7 @@ crate-type = ["dylib"]
 
 [dependencies]
 rdev = { git = "https://github.com/Brendonovich/rdev", features = ["macos_noloop"] }
-macrograph-core-types = { path = "../../core/types" }
+macrograph-package-api = { path = "../../core/package-api" }
 serde_json = "1.0.68"
 serde = "1.0.130"
 futures = "0.3.19"

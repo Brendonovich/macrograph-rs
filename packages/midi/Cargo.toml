@@ -11,5 +11,5 @@ crate-type = ["dylib"]
 
 [dependencies]
 midir = "0.7.0"
-macrograph-core-types = { path = "../../core/types" }
+macrograph-package-api = { path = "../../core/package-api" }
 tokio = {version = "1.16.1", features = ["rt", "rt-multi-thread"]}

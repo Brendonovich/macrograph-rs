@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{node::Position, Value};
+use crate::node::Position;
+use macrograph_package_api::Value;
 
 use self::{
     graph::RawGraph,

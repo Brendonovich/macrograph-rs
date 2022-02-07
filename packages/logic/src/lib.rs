@@ -1,4 +1,4 @@
-use macrograph_core_types::{exec_fn, Package};
+use macrograph_package_api::{package::Package, exec_fn};
 
 #[no_mangle]
 pub fn create_package() -> Package {
@@ -12,7 +12,7 @@ pub fn create_package() -> Package {
             s.exec_output("True");
             s.exec_output("False");
         },
-        exec_fn!(|io, _ctx| async {
+        exec_fn!(|io, _ctx| {
             Some(if io.get_bool("Condition").unwrap() {
                 "True"
             } else {

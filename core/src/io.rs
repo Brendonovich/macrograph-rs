@@ -1,8 +1,7 @@
 use arc_swap::ArcSwap;
 use weak_table::PtrWeakHashSet;
 
-use crate::value::Value;
-use crate::{node::Node, types::NodeRef};
+use crate::{node::Node, value::Value};
 use std::sync::{Arc, Mutex, Weak};
 
 pub struct DataInput {
@@ -71,7 +70,7 @@ pub struct ExecInput {
 }
 
 impl ExecInput {
-    pub fn new(name: String, node: &NodeRef) -> Self {
+    pub fn new(name: String, node: &Arc<Node>) -> Self {
         Self {
             name,
             node: Arc::downgrade(node),
@@ -126,7 +125,7 @@ pub struct DataOutput {
 }
 
 impl DataOutput {
-    pub fn new(name: String, value: Value, node: &NodeRef) -> Self {
+    pub fn new(name: String, value: Value, node: &Arc<Node>) -> Self {
         Self {
             name,
             value: ArcSwap::from_pointee(value),

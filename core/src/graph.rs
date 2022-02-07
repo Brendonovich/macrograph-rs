@@ -6,7 +6,7 @@ use std::{collections::HashMap, sync::Arc};
 pub struct Graph {
     pub id: i32,
     pub name: String,
-    pub nodes: HashMap<i32, NodeRef>,
+    pub nodes: HashMap<i32, Arc<Node>>,
     id_counter: i32,
 }
 
@@ -30,7 +30,7 @@ impl Graph {
         id
     }
 
-    pub fn create_node(&mut self, schema: &Arc<NodeSchema>, position: Position) -> NodeRef {
+    pub fn create_node(&mut self, schema: &Arc<NodeSchema>, position: Position) -> Arc<Node> {
         let id = self.generate_id();
 
         let node = Node::new(id, self.id, schema, position);
@@ -44,7 +44,7 @@ impl Graph {
         self.nodes.remove(&node);
     }
 
-    pub fn node(&self, id: i32) -> Option<&NodeRef> {
+    pub fn node(&self, id: i32) -> Option<&Arc<Node>> {
         self.nodes.get(&id)
     }
 

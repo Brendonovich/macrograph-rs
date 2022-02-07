@@ -1,7 +1,7 @@
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::Package;
+use crate::package::Package;
 
 use super::schema::RawNodeSchema;
 

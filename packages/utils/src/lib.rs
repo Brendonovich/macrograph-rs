@@ -1,4 +1,4 @@
-use macrograph_core_types::{exec_fn, Package};
+use macrograph_package_api::{exec_fn, package::Package};
 
 #[no_mangle]
 pub fn create_package() -> Package {
@@ -13,6 +13,6 @@ pub fn create_package() -> Package {
             println!("Print: {}", n.get_string("Value").unwrap());
         }),
     );
-    
+
     package
 }

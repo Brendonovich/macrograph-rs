@@ -1,12 +1,16 @@
 use std::any::Any;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::api::{Request, Response};
-use macrograph_core_types::graph::Graph;
-use macrograph_core_types::io::{Input, Output};
-use macrograph_core_types::node::Position;
-use macrograph_core_types::schema::NodeSchemaType;
-use macrograph_core_types::{EngineContext, Event, ExecuteContext, NodeRef, Package};
+use crate::graph::Graph;
+use crate::io::{Input, Output};
+use crate::node::{Node, Position};
+use crate::package::{Engine, Package};
+use crate::ExecuteFn;
+use macrograph_package_api::engine::{EngineContext, Event};
+use macrograph_package_api::schema::NodeSchemaType;
+use macrograph_package_api::ExecuteContext;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot;
 
@@ -106,18 +110,36 @@ impl Core {
         self.packages.iter_mut().find(|p| p.name == name)
     }
 
-    pub async fn setup(&self) {
-        for package in &self.packages {
-            if let Some(engine) = &package.engine {
-                let engine = engine.clone();
-                let run = engine.run;
-                let channel = self.event_channel.0.clone();
-                let package_name = package.name.clone();
-                let handle = package.runtime.handle().clone();
+    pub fn setup(&mut self) {
+        for package in &mut self.packages {
+            package.engine = if let Some(engine) = package.engine.take() {
+                match engine {
+                    Engine::Created { run, state } => {
+                        let (request_sender, request_receiver) = unbounded_channel();
+                        let handle = package.runtime.handle();
+                        let handle = handle.clone();
+                        let package = package.name.clone();
+                        let event_sender = self.event_channel.0.clone();
 
-                std::thread::spawn(move || {
-                    run(engine, EngineContext::new(package_name, channel, handle));
-                });
+                        std::thread::spawn(move || {
+                            run(EngineContext {
+                                initial_state: state,
+                                request_receiver,
+                                handle: handle.clone(),
+                                package,
+                                event_sender,
+                            });
+                        });
+
+                        Some(Engine::Running { request_sender })
+                    }
+                    _ => {
+                        println!("Attempted to setup an engine that has already been created");
+                        None
+                    }
+                }
+            } else {
+                None
             }
         }
     }
@@ -210,7 +232,7 @@ impl Core {
         package: &str,
         schema: &str,
         position: Position,
-    ) -> Option<NodeRef> {
+    ) -> Option<Arc<Node>> {
         let schema = self.package(&package).unwrap().schema(&schema); //and_then(|p| p.schema(&schema));
 
         if let Some(schema) = schema {
@@ -350,11 +372,11 @@ impl Core {
         }
     }
 
-    pub(crate) async fn execute_node(&self, node: &NodeRef) -> Option<&'static str> {
+    pub(crate) async fn execute_node(&self, node: &Arc<Node>) -> Option<&'static str> {
         for input in node.inputs.lock().unwrap().iter() {
             if let Input::Data(input) = input {
                 if let Some(output) = input.connected_output.lock().unwrap().upgrade() {
-                    match **output.node.upgrade().unwrap().schema {
+                    match ***output.node.upgrade().unwrap().schema {
                         NodeSchemaType::Exec { .. } | NodeSchemaType::Event { .. } => {
                             input.set_value(output.value.load_full())
                         }
@@ -367,18 +389,28 @@ impl Core {
         }
 
         let package = self.package(&node.schema.package).unwrap();
-        let engine = package.engine.clone();
-        let context = ExecuteContext {
-            engine,
-            handle: package.runtime.handle().clone(),
+        let request_send_channel = match &package.engine {
+            Some(Engine::Running { request_sender }) => request_sender.clone(),
+            _ => {
+                println!("Tried to execute node before engine ran");
+                return None;
+            }
         };
+
+        let context = ExecuteContext::new(request_send_channel, package.runtime.handle().clone());
 
         let mut io_data = node.get_io_data();
 
-        let res = match &**node.schema {
-            NodeSchemaType::Base { execute } => (execute)(&mut io_data, context).await,
+        let res = match &***node.schema {
+            NodeSchemaType::Base { execute } => match execute {
+                ExecuteFn::Sync(execute) => execute(&mut io_data, context),
+                ExecuteFn::Async(execute) => execute(&mut io_data, context).await,
+            },
             NodeSchemaType::Exec { execute } => {
-                (execute)(&mut io_data, context).await;
+                match execute {
+                    ExecuteFn::Sync(execute) => execute(&mut io_data, context),
+                    ExecuteFn::Async(execute) => execute(&mut io_data, context).await,
+                };
                 Some("")
             }
             _ => None,
@@ -397,7 +429,7 @@ impl Core {
     ) {
         let node = self.graph(graph).unwrap().nodes.get(&node_id).unwrap();
 
-        let fire = match **node.schema {
+        let fire = match ***node.schema {
             NodeSchemaType::Event { fire } => fire,
             _ => return,
         };

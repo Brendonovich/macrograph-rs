@@ -3,9 +3,12 @@ pub mod key;
 pub mod key_event;
 mod types;
 
-use self::engine::setup_engine;
+use engine::{run, EngineInitialState};
+
 use key_event::KeyEvent;
-use macrograph_core_types::{fire_fn, Package};
+use macrograph_package_api::{engine::EngineConfig, fire_fn, package::Package, run_fn};
+use rdev::{listen, Event};
+use tokio::sync::mpsc;
 
 const PRESSED: &str = "Pressed";
 const RELEASED: &str = "Released";
@@ -17,7 +20,29 @@ const META: &str = "Meta Pressed";
 #[no_mangle]
 pub fn create_package() -> Package {
     let mut package = Package::new("Keyboard");
-    package.set_engine(setup_engine());
+
+    package.set_engine({
+        let (tx, rx) = mpsc::unbounded_channel::<Event>();
+
+        let cb = || {
+            listen(move |event| {
+                tx.send(event).unwrap();
+            })
+            .unwrap()
+        };
+
+        // macos isn't blocking
+        if cfg!(target_os = "macos") {
+            cb();
+        } else {
+            std::thread::spawn(cb);
+        }
+
+        EngineConfig {
+            run: run_fn!(run),
+            state: Some(Box::new(rx)),
+        }
+    });
 
     for c in 'A'..'Z' {
         package.add_event_schema(
@@ -25,7 +50,7 @@ pub fn create_package() -> Package {
             |s| {
                 s.exec_output(PRESSED);
                 s.exec_output(RELEASED);
-                
+
                 s.data_output(SHIFT, false.into());
                 s.data_output(CTRL, false.into());
                 s.data_output(ALT, false.into());
