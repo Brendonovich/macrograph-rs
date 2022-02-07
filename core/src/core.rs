@@ -11,6 +11,7 @@ use crate::ExecuteFn;
 use macrograph_package_api::engine::{EngineContext, Event};
 use macrograph_package_api::schema::NodeSchemaType;
 use macrograph_package_api::ExecuteContext;
+use macrograph_package_api::package::Package as ApiPackage;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot;
 
@@ -95,10 +96,10 @@ impl Core {
     pub fn load_library(&mut self, path: &str) {
         unsafe {
             let lib = libloading::Library::new(path).unwrap();
-            let create_package: libloading::Symbol<fn() -> Package> =
+            let create_package: libloading::Symbol<fn() -> ApiPackage> =
                 lib.get(b"create_package").unwrap();
             let p = create_package();
-            self.packages.push(p);
+            self.packages.push(p.into());
         }
     }
 

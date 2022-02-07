@@ -40,16 +40,13 @@ async fn main() {
     core.load_library(&path.to_str().unwrap());
   }
 
-  println!("1");
   core.setup();
-  println!("2");
 
   let controller = core.get_controller();
 
   tokio::spawn(async move {
     core.start().await;
   });
-  println!("3");
 
   tauri::Builder::default()
     .manage(controller)
