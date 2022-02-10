@@ -9,9 +9,10 @@ use crate::node::{Node, Position};
 use crate::package::{Engine, Package};
 use crate::ExecuteFn;
 use macrograph_package_api::engine::{EngineContext, Event};
-use macrograph_package_api::schema::NodeSchemaType;
-use macrograph_package_api::ExecuteContext;
 use macrograph_package_api::package::Package as ApiPackage;
+use macrograph_package_api::schema::NodeSchemaType;
+use macrograph_package_api::value::types::ValueType;
+use macrograph_package_api::{ExecuteContext, Value};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot;
 
@@ -74,6 +75,7 @@ impl Core {
         };
 
         ret.create_graph("Graph 0".into());
+        ret.create_graph("Graph 1".into());
 
         ret
     }
@@ -168,9 +170,28 @@ impl Core {
                     outputs: outputs.iter().map(|o| o.into()).collect(),
                 }
             }
+            SetNodePosition {
+                graph,
+                node,
+                position,
+            } => {
+                self.graph_mut(graph)
+                    .and_then(|g| g.node(node))
+                    .map(|node| node.set_position(position));
+                Response::SetNodePosition
+            }
             DeleteNode { graph, node } => {
                 self.delete_node(graph, node);
                 Response::DeleteNode
+            }
+            CreateGraph => {
+                let name = format!("Graph {}", self.graphs.len());
+                let id = self.create_graph(name.clone());
+                Response::CreateGraph { id, name }
+            }
+            RenameGraph { id, name } => {
+                self.graph_mut(id).map(|g| g.name = name);
+                Response::RenameGraph
             }
             ConnectIO {
                 graph,
@@ -208,7 +229,9 @@ impl Core {
                     .find_data_input(&input)
                     .unwrap();
 
-                input.set_default_value(value);
+                if input.r#type == ValueType::Primitive(value.r#type()) {
+                    input.set_default_value(value);
+                }
 
                 Response::SetDefaultValue
             }
@@ -219,7 +242,7 @@ impl Core {
                 graphs: self.graphs.values().map(|g| g.into()).collect(),
             },
             Reset { graph } => {
-                self.graph_mut(graph).unwrap().reset();
+                self.graph_mut(graph).map(|g| g.reset());
                 Response::Reset
             }
         };
@@ -391,9 +414,10 @@ impl Core {
 
         let package = self.package(&node.schema.package).unwrap();
         let request_send_channel = match &package.engine {
-            Some(Engine::Running { request_sender }) => request_sender.clone(),
+            Some(Engine::Running { request_sender }) => Some(request_sender.clone()),
+            None => None,
             _ => {
-                println!("Tried to execute node before engine ran");
+                println!("Attempted to executed node before engine ran");
                 return None;
             }
         };

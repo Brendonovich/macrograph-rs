@@ -13,11 +13,7 @@ pub struct EngineState {
 }
 
 pub async fn run(mut ctx: EngineContext) {
-    let mut receiver = ctx
-        .initial_state
-        .take()
-        .map(|s| s.downcast::<EngineInitialState>().unwrap())
-        .unwrap();
+    let mut receiver = ctx.initial_state::<EngineInitialState>();
 
     let mut state = EngineState {
         shift_pressed: false,

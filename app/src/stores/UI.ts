@@ -1,7 +1,7 @@
 import { makeAutoObservable, toJS } from "mobx";
 import { Position } from "@macrograph/core-types";
 
-import { Node, Pin } from "~/models";
+import { Graph, Node, Pin } from "~/models";
 
 class UIStore {
   selectedNode: Node | null = null;
@@ -12,9 +12,15 @@ class UIStore {
   mouseDownLocation: XY | null = null;
   mouseDownTranslate: XY | null = null;
 
+  currentGraph: Graph | null = null;
+
+  graphOffset: XY = {
+    x: 0,
+    y: 0,
+  };
   translate: XY = {
-    x: -200,
-    y: -200,
+    x: 0,
+    y: 0,
   };
   scale = 1;
 
@@ -90,6 +96,15 @@ class UIStore {
 
   setMouseDownTranslate(translate?: XY) {
     this.mouseDownTranslate = translate ?? null;
+  }
+
+  setGraphOffset(offset: XY) {
+    this.graphOffset = offset;
+  }
+
+  setCurrentGraph(graph: Graph) {
+    this.setSchemaMenuPosition()
+    this.currentGraph = graph;
   }
 }
 

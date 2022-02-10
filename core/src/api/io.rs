@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use macrograph_package_api::Value;
+use macrograph_package_api::{primitive::Primitive, value::types::ValueType};
 use serde::Serialize;
 use ts_rs::TS;
 
@@ -8,14 +6,24 @@ use crate::io::{Input, Output};
 
 #[derive(TS, Serialize, Debug)]
 #[ts(export)]
+pub struct Connection {
+    node: i32,
+    io: String,
+}
+
+#[derive(TS, Serialize, Debug)]
+#[ts(export)]
 #[serde(tag = "variant", rename = "Input")]
 pub enum RawInput {
     Data {
         name: String,
-        default_value: Arc<Value>,
+        r#type: ValueType,
+        default_value: Primitive,
+        connection: Option<Connection>,
     },
     Exec {
         name: String,
+        connection: Option<Connection>,
     },
 }
 
@@ -24,10 +32,29 @@ impl From<&Input> for RawInput {
         match input {
             Input::Data(input) => RawInput::Data {
                 name: input.name.clone(),
-                default_value: input.default_value.load().clone(),
+                r#type: input.r#type.clone(),
+                default_value: input.default_value.load().as_ref().clone(),
+                connection: input
+                    .connected_output
+                    .lock()
+                    .ok()
+                    .and_then(|output| output.upgrade())
+                    .map(|output| Connection {
+                        node: output.node.upgrade().unwrap().id,
+                        io: output.name.clone(),
+                    }),
             },
             Input::Exec(input) => RawInput::Exec {
                 name: input.name.clone(),
+                connection: input
+                    .connected_output
+                    .lock()
+                    .ok()
+                    .and_then(|output| output.upgrade())
+                    .map(|output| Connection {
+                        node: output.node.upgrade().unwrap().id,
+                        io: output.name.clone(),
+                    }),
             },
         }
     }
@@ -37,25 +64,19 @@ impl From<&Input> for RawInput {
 #[ts(export)]
 #[serde(tag = "variant", rename = "Output")]
 pub enum RawOutput {
-    Data {
-        name: String,
-        #[serde(rename = "type")]
-        typ: Value,
-    },
-    Exec {
-        name: String,
-    },
+    Data { name: String, r#type: ValueType },
+    Exec { name: String },
 }
 
 impl From<&Output> for RawOutput {
     fn from(output: &Output) -> Self {
         match output {
-            Output::Data(data_output) => RawOutput::Data {
-                name: data_output.name.clone(),
-                typ: (**data_output.value.load()).clone(),
+            Output::Data(output) => RawOutput::Data {
+                name: output.name.clone(),
+                r#type: (**output.value.load()).r#type(),
             },
-            Output::Exec(exec_output) => RawOutput::Exec {
-                name: exec_output.name.clone(),
+            Output::Exec(output) => RawOutput::Exec {
+                name: output.name.clone(),
             },
         }
     }

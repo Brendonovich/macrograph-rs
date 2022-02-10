@@ -20,7 +20,7 @@ const SchemaTypeColours: Record<NodeSchemaType, string> = {
   Exec: "bg-blue-exec",
   Base: "bg-gray-base",
   Event: "bg-red-event",
-  // [NodeSchemaType.Pure]: "bg-green-pure",
+  Pure: "bg-green-pure",
 };
 
 export const Node = observer<Props>(({ node }) => {
@@ -100,7 +100,7 @@ export const Node = observer<Props>(({ node }) => {
               )
             )}
           </div>
-          <div className="p-2 flex flex-col space-y-2.5 items-end">
+          <div className="p-2 ml-auto flex flex-col space-y-2.5 items-end">
             {node.outputs.map((o) =>
               o instanceof DataOutputModel ? (
                 <DataOutput output={o} key={o.name} />

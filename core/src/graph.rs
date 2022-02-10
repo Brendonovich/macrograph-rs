@@ -1,6 +1,5 @@
 use crate::node::{Node, Position};
 use crate::schema::NodeSchema;
-use crate::*;
 use std::{collections::HashMap, sync::Arc};
 
 pub struct Graph {

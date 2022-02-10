@@ -4,18 +4,19 @@ import { observer } from "mobx-react-lite";
 import { Core } from "~/models";
 import { CoreProvider, CurrentGraphProvider } from "./contexts";
 import { Graph } from "~/components/Graph";
+import { GraphList } from "~/components/ProjectSidebar";
+import { UI } from "./stores";
 
 const core = new Core();
 
 function App() {
   const [ready, setReady] = useState(false);
-  const [currentGraph, setCurrentGraph] = useState(core.graphs[0]);
 
   useEffect(() => {
     (async () => {
       await core.loadPackages();
       await core.loadProject();
-      setCurrentGraph(core.graphs[0]);
+      UI.setCurrentGraph(Object.values(core.graphs)[0]);
       setReady(true);
     })();
   }, []);
@@ -23,10 +24,17 @@ function App() {
 
   return (
     <CoreProvider core={core}>
-      <div className="w-screen h-screen overflow-hidden bg-green-500 select-none">
-        <CurrentGraphProvider graph={currentGraph}>
-          <Graph />
-        </CurrentGraphProvider>
+      <div className="w-screen h-screen flex flex-row overflow-hidden select-none">
+        <GraphList
+          currentGraph={UI.currentGraph}
+          onChange={(g) => UI.setCurrentGraph(g)}
+          graphs={Object.values(core.graphs)}
+        />
+        {UI.currentGraph && (
+          <CurrentGraphProvider graph={UI.currentGraph}>
+            <Graph />
+          </CurrentGraphProvider>
+        )}
       </div>
     </CoreProvider>
   );

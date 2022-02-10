@@ -11,6 +11,7 @@ pub enum RawNodeSchemaType {
     Base,
     Exec,
     Event,
+    Pure
 }
 
 #[derive(TS, Serialize, Debug)]
@@ -38,6 +39,7 @@ impl From<&NodeSchema> for RawNodeSchema {
                 NodeSchemaType::Base { .. } => RawNodeSchemaType::Base,
                 NodeSchemaType::Exec { .. } => RawNodeSchemaType::Exec,
                 NodeSchemaType::Event { .. } => RawNodeSchemaType::Event,
+                NodeSchemaType::Pure { .. } => RawNodeSchemaType::Pure,
             },
         }
     }

@@ -71,7 +71,7 @@ export const DataInput: FC<Props> = ({ input }) => (
       {() => (
         <>
           <span>{input.name}</span>
-          <UnconnectedInput input={input} />
+          {input.type.variant === "primitive" && <UnconnectedInput input={input} />}
         </>
       )}
     </Observer>

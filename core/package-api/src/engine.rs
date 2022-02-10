@@ -34,6 +34,13 @@ pub struct EngineContext {
 }
 
 impl EngineContext {
+    pub fn initial_state<T: 'static>(&mut self) -> Box<T> {
+        self.initial_state
+            .take()
+            .map(|s| s.downcast::<T>().unwrap())
+            .unwrap()
+    }
+
     pub fn send(&self, event: &str, data: impl Any + Send + Sync) {
         self.event_sender
             .send(Event::new(&self.package, event, data));

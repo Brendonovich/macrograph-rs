@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::node::Position;
-use macrograph_package_api::Value;
+use macrograph_package_api::{Value, primitive::Primitive};
 
 use self::{
     graph::RawGraph,
@@ -26,15 +26,16 @@ pub enum Request {
         schema: String,
         position: Position,
     },
-    DeleteNode {
-        graph: i32,
-        node: i32,
-    },
     SetDefaultValue {
         graph: i32,
         node: i32,
         input: String,
-        value: Value,
+        value: Primitive,
+    },
+    SetNodePosition {
+        graph: i32,
+        node: i32,
+        position: Position,
     },
     ConnectIO {
         graph: i32,
@@ -48,6 +49,15 @@ pub enum Request {
         node: i32,
         io: String,
         is_input: bool,
+    },
+    DeleteNode {
+        graph: i32,
+        node: i32,
+    },
+    CreateGraph,
+    RenameGraph {
+        id: i32,
+        name: String,
     },
     GetPackages,
     GetProject,
@@ -65,10 +75,16 @@ pub enum Response {
         inputs: Vec<RawInput>,
         outputs: Vec<RawOutput>,
     },
-    DeleteNode,
     SetDefaultValue,
+    SetNodePosition,
     ConnectIO,
     DisconnectIO,
+    DeleteNode,
+    CreateGraph {
+        id: i32,
+        name: String,
+    },
+    RenameGraph,
     GetPackages {
         packages: Vec<RawPackage>,
     },

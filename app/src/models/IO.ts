@@ -1,18 +1,33 @@
 import { makeAutoObservable, runInAction } from "mobx";
-import { Value } from "@macrograph/core-types";
+import {
+  Value,
+  Input,
+  Output,
+  ValueType,
+  Primitive,
+} from "@macrograph/core-types";
 
 import { Node } from "./Node";
-import { send } from "~/utils";
+import { debouncedAction, send } from "~/utils";
+
+interface DataInputArgs extends Extract<Input, { variant: "Data" }> {
+  node: Node;
+}
 
 export class DataInput {
+  name: string;
+  defaultValue: Primitive;
+  type: ValueType;
+  node: Node;
   connection: DataOutput | null = null;
 
-  constructor(
-    public node: Node,
-    public name: string,
-    public defaultValue: Value
-  ) {
+  constructor(args: DataInputArgs) {
     makeAutoObservable(this);
+
+    this.name = args.name;
+    this.defaultValue = args.default_value;
+    this.node = args.node;
+    this.type = args.type;
   }
 
   async disconnect(_send = true) {
@@ -33,39 +48,43 @@ export class DataInput {
     });
   }
 
-  private defaultValueDebounce: any = null;
-
-  async setDefaultValue(value: Value) {
+  async setDefaultValue(value: Primitive) {
     this.defaultValue = value;
 
-    if (this.defaultValueDebounce) {
-      clearTimeout(this.defaultValueDebounce);
-    }
-
-    setTimeout(async () => {
-      await send("SetDefaultValue", {
+    debouncedAction({
+      request: "SetDefaultValue",
+      data: {
         graph: this.node.graph.id,
         node: this.node.id,
         input: this.name,
         value: value,
-      });
-    }, 100);
+      },
+      timeout: 100,
+      key: `default-${this.node.id}-${this.name}`,
+    });
   }
 
   get connected() {
     return this.connection !== null;
   }
+}
 
-  get type() {
-    return this.defaultValue;
-  }
+interface DataOutputArgs extends Extract<Output, { variant: "Data" }> {
+  node: Node;
 }
 
 export class DataOutput {
   connections: DataInput[] = [];
+  node: Node;
+  name: string;
+  type: ValueType;
 
-  constructor(public node: Node, public name: string, public type: Value) {
+  constructor(args: DataOutputArgs) {
     makeAutoObservable(this);
+
+    this.node = args.node;
+    this.name = args.name;
+    this.type = args.type;
   }
 
   async disconnect(_send = true) {
@@ -88,11 +107,20 @@ export class DataOutput {
   }
 }
 
+interface ExecInputArgs extends Extract<Input, { variant: "Exec" }> {
+  node: Node;
+}
+
 export class ExecInput {
   connection: ExecOutput | null = null;
+  node: Node;
+  name: string;
 
-  constructor(public node: Node, public name: string) {
+  constructor(args: ExecInputArgs) {
     makeAutoObservable(this);
+
+    this.node = args.node;
+    this.name = args.name;
   }
 
   async disconnect(_send = true) {
@@ -115,11 +143,20 @@ export class ExecInput {
   }
 }
 
+interface ExecOutputArgs extends Extract<Output, { variant: "Exec" }> {
+  node: Node;
+}
+
 export class ExecOutput {
   connection: ExecInput | null = null;
+  public node: Node;
+  public name: string;
 
-  constructor(public node: Node, public name: string) {
+  constructor(args: ExecOutputArgs) {
     makeAutoObservable(this);
+
+    this.node = args.node;
+    this.name = args.name;
   }
 
   async disconnect(_send = true) {

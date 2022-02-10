@@ -4,10 +4,10 @@ import { FC } from "react";
 import { DataInput, DataOutput } from "~/models";
 import { usePin } from "~/hooks";
 import { Observer } from "mobx-react-lite";
-import { Value } from "@macrograph/core-types";
+import { PrimitiveType, Value } from "@macrograph/core-types";
 
 const DataPinTypeColours: Record<
-  Value["type"],
+  PrimitiveType,
   { active: string; base: string }
 > = {
   bool: {
@@ -19,8 +19,8 @@ const DataPinTypeColours: Record<
     base: "border-pink-string hover:bg-pink-string",
   },
   int: {
-    active: "border-int-blue bg-int-blue",
-    base: "border-int-blue hover:bg-int-blue",
+    active: "border-blue-int bg-blue-int",
+    base: "border-blue-int hover:bg-blue-int",
   },
   float: {
     active: "border-green-float bg-green-float",
@@ -33,7 +33,17 @@ interface Props {
 }
 
 export const DataPin: FC<Props> = ({ pin }) => {
-  const colourClass = DataPinTypeColours[pin.type.type];
+  let type: PrimitiveType;
+  let isArray = false;
+  if (pin.type.variant === "primitive") {
+    type = pin.type.value;
+  } else {
+    isArray = true;
+    if (pin.type.value.variant === "primitive") type = pin.type.value.value;
+    else throw "";
+  }
+
+  let colourClass = DataPinTypeColours[type];
 
   const { ref, active } = usePin(pin);
 
@@ -46,7 +56,8 @@ export const DataPin: FC<Props> = ({ pin }) => {
             pointerEvents: "all",
           }}
           className={clsx(
-            `w-3.5 h-3.5 rounded-full border-2`,
+            `w-3.5 h-3.5 border-2`,
+            !isArray && "rounded-full",
             pin.connected || active ? colourClass.active : colourClass.base
           )}
         />

@@ -1,6 +1,12 @@
 use std::{any::Any, ops::Deref};
 
-use tokio::runtime::EnterGuard;
+use tokio::{
+    runtime::{EnterGuard, Handle},
+    sync::{
+        mpsc::UnboundedSender,
+        oneshot::{self, Sender},
+    },
+};
 
 use crate::types::{AsyncExecuteFn, BuildFn, FireFn, SyncExecuteFn};
 
@@ -12,6 +18,7 @@ pub enum ExecuteFn<T = Option<&'static str>> {
 pub enum NodeSchemaType {
     Base { execute: ExecuteFn },
     Exec { execute: ExecuteFn<()> },
+    Pure { execute: ExecuteFn<()> },
     Event { fire: FireFn },
 }
 
@@ -64,22 +71,16 @@ type EngineRequestData = Box<dyn Any + Send>;
 #[derive(Debug)]
 pub enum EngineRequest {
     Send(EngineRequestData),
-    Invoke(
-        EngineRequestData,
-        tokio::sync::oneshot::Sender<EngineRequestData>,
-    ),
+    Invoke(EngineRequestData, Sender<EngineRequestData>),
 }
 
 pub struct ExecuteContext {
-    sender: tokio::sync::mpsc::UnboundedSender<EngineRequest>,
-    handle: tokio::runtime::Handle,
+    sender: Option<UnboundedSender<EngineRequest>>,
+    handle: Handle,
 }
 
 impl ExecuteContext {
-    pub fn new(
-        sender: tokio::sync::mpsc::UnboundedSender<EngineRequest>,
-        handle: tokio::runtime::Handle,
-    ) -> Self {
+    pub fn new(sender: Option<UnboundedSender<EngineRequest>>, handle: Handle) -> Self {
         Self { sender, handle }
     }
 
@@ -87,14 +88,20 @@ impl ExecuteContext {
         self.handle.enter()
     }
 
-    pub fn send(&self, data: EngineRequestData) {
-        self.sender.send(EngineRequest::Send(data)).unwrap();
+    pub fn send<T: Any + Send>(&self, data: T) {
+        if let Some(sender) = &self.sender {
+            sender.send(EngineRequest::Send(Box::new(data))).unwrap();
+        }
     }
 
-    pub async fn invoke(&self, data: EngineRequestData) -> EngineRequestData {
-        let (tx, rx) = tokio::sync::oneshot::channel();
-        self.sender.send(EngineRequest::Invoke(data, tx)).unwrap();
-        rx.await.unwrap()
+    pub async fn invoke(&self, data: EngineRequestData) -> Option<EngineRequestData> {
+        if let Some(sender) = &self.sender {
+            let (tx, rx) = oneshot::channel();
+            sender.send(EngineRequest::Invoke(data, tx)).unwrap();
+            Some(rx.await.unwrap())
+        } else {
+            None
+        }
     }
 }
 

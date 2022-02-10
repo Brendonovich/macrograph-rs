@@ -3,11 +3,14 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use macrograph_package_api::{BuildSchema, IOProxy, InputSchema, OutputSchema};
+use macrograph_package_api::{
+    value::types::{PrimitiveType, ValueType},
+    BuildSchema, IOProxy, InputSchema, OutputSchema,
+};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{io::*, schema::NodeSchema, types::*, value::Value};
+use crate::{io::*, schema::NodeSchema, value::Value};
 
 #[derive(TS, Serialize, Deserialize, Debug, Clone)]
 #[ts(export)]
@@ -19,7 +22,7 @@ pub struct Position {
 pub struct Node {
     pub id: i32,
     pub graph_id: i32,
-    pub position: Position,
+    pub position: Mutex<Position>,
     pub schema: Arc<NodeSchema>,
     // Structs referencing IO must not hold strong references
     // Dropping the node should also drop the IO, so only use Weaks
@@ -34,7 +37,7 @@ impl Node {
         let node = Arc::new(Self {
             id,
             graph_id,
-            position,
+            position: Mutex::new(position),
             schema: schema.clone(),
             inputs: Mutex::new(vec![]),
             outputs: Mutex::new(vec![]),
@@ -47,6 +50,10 @@ impl Node {
         node.reconcile_io(ctx);
 
         node
+    }
+
+    pub fn set_position(&self, position: Position) {
+        *self.position.lock().unwrap() = position;
     }
 
     fn reconcile_io(self: &Arc<Self>, ctx: BuildSchema) {
@@ -68,25 +75,22 @@ impl Node {
                             _ => {}
                         }
                     }
-                    None => {
-                        inputs.insert(index, Input::Exec(Arc::new(ExecInput::new(name, &self))))
-                    }
+                    None => inputs.insert(index, ExecInput::new(name, &self)),
                 },
-                InputSchema::Data(name, default_value) => {
+                InputSchema::Data(name, r#type) => {
                     match inputs.iter().position(|i| i.get_name() == name) {
                         Some(input_index) => {
                             let input = &inputs[input_index];
 
                             match input {
                                 Input::Data(input) => {
-                                    if !Value::is_same_type(
-                                        &input.default_value.load(),
-                                        &default_value,
-                                    ) {
+                                    if input.r#type != r#type {
                                         input.disconnect();
                                     }
 
-                                    input.set_default_value(default_value);
+                                    if let ValueType::Primitive(t) = r#type {
+                                        input.set_value(Arc::new(t.into()));
+                                    }
 
                                     if input_index != index {
                                         inputs.swap(input_index, index);
@@ -95,10 +99,7 @@ impl Node {
                                 _ => {}
                             }
                         }
-                        None => inputs.insert(
-                            index,
-                            Input::Data(Arc::new(DataInput::new(name, default_value))),
-                        ),
+                        None => inputs.insert(index, DataInput::new(name, r#type, &self)),
                     }
                 }
             }
@@ -125,23 +126,21 @@ impl Node {
                                 _ => {}
                             }
                         }
-                        None => {
-                            outputs.insert(index, Output::Exec(Arc::new(ExecOutput::new(name))))
-                        }
+                        None => outputs.insert(index, ExecOutput::new(name, &self)),
                     }
                 }
-                OutputSchema::Data(name, default_value) => {
+                OutputSchema::Data(name, r#type) => {
                     match outputs.iter().position(|i| i.get_name() == name) {
                         Some(output_index) => {
                             let output = &outputs[output_index];
 
                             match output {
                                 Output::Data(output) => {
-                                    if !Value::is_same_type(&output.value.load(), &default_value) {
+                                    if output.r#type != r#type {
                                         output.disconnect();
                                     }
 
-                                    output.set_value(default_value);
+                                    output.set_value(r#type.into());
 
                                     if output_index != index {
                                         outputs.swap(output_index, index);
@@ -150,10 +149,8 @@ impl Node {
                                 _ => {}
                             }
                         }
-                        None => outputs.insert(
-                            index,
-                            Output::Data(Arc::new(DataOutput::new(name, default_value, &self))),
-                        ),
+                        None => outputs
+                            .insert(index, DataOutput::new(name, r#type, r#type.into(), &self)),
                     }
                 }
             }

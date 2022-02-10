@@ -1,16 +1,20 @@
 import { invoke } from "@tauri-apps/api";
 import { Request, Response } from "@macrograph/core-types";
 
-export const send = async <
-  T extends Request["type"],
-  R = Extract<Response, { type: T }>,
-  // @ts-expect-error
-  D = R["data"] extends object ? R["data"] : never
->(
+export type RequestType = Request["type"];
+export type RequestData<
+  T extends RequestType,
+  R = Extract<Request, { type: T }>
+> = R extends { data: any } ? R["data"] : never;
+export type ResponseData<
+  T extends RequestType,
+  R = Extract<Response, { type: T }>
+> = R extends { data: any } ? R["data"] : never;
+
+export const send = async <T extends RequestType>(
   type: T,
-  // @ts-expect-error
-  data?: Extract<Request, { type: T }>["data"]
-): Promise<D> => {
+  data?: RequestData<T>
+): Promise<ResponseData<T>> => {
   const res: any = await invoke("core_request", {
     req: {
       type,

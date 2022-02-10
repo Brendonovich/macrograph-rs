@@ -25,7 +25,7 @@ impl From<&Node> for RawNode {
         Self {
             id: node.id,
             schema: node.schema.as_ref().into(),
-            position: node.position.clone(),
+            position: node.position.lock().unwrap().clone(),
             inputs: node.inputs.lock().unwrap().iter().map(|io| io.into()).collect(),
             outputs: node.outputs.lock().unwrap().iter().map(|io| io.into()).collect(),
         }

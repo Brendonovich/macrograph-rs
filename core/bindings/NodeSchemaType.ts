@@ -1,2 +1,2 @@
 
-export type NodeSchemaType = "Base" | "Exec" | "Event";
+export type NodeSchemaType = "Base" | "Exec" | "Event" | "Pure";

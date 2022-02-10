@@ -1,4 +1,8 @@
-use arc_swap::ArcSwap;
+use arc_swap::{access::Access, ArcSwap};
+use macrograph_package_api::{
+    primitive::Primitive,
+    value::types::{PrimitiveType, ValueType},
+};
 use weak_table::PtrWeakHashSet;
 
 use crate::{node::Node, value::Value};
@@ -6,21 +10,28 @@ use std::sync::{Arc, Mutex, Weak};
 
 pub struct DataInput {
     pub name: String,
-    pub default_value: ArcSwap<Value>,
+    pub r#type: ValueType,
     pub value: ArcSwap<Value>,
+    pub default_value: ArcSwap<Primitive>,
+    pub node: Weak<Node>,
     pub connected_output: Mutex<Weak<DataOutput>>,
 }
 
 impl DataInput {
-    pub fn new(name: String, default_value: Value) -> Self {
-        let value = Arc::new(default_value);
+    pub fn new(name: String, r#type: ValueType, node: &Arc<Node>) -> Input {
+        let value = Arc::new(match r#type {
+            ValueType::Primitive(primitive) => primitive.into(),
+            ValueType::List(list_type) => Primitive::Bool(false),
+        });
 
-        Self {
+        Input::Data(Arc::new(Self {
             name,
-            value: ArcSwap::from(value.clone()),
+            r#type,
+            value: ArcSwap::from(Arc::new(r#type.into())),
             default_value: ArcSwap::from(value),
+            node: Arc::downgrade(node),
             connected_output: Mutex::new(Weak::new()),
-        }
+        }))
     }
 
     pub fn get_value(&self) -> Arc<Value> {
@@ -31,14 +42,21 @@ impl DataInput {
         self.value.swap(value);
     }
 
-    pub fn set_default_value(&self, value: Value) {
-        if Value::is_same_type(self.default_value.load().as_ref(), &value) {
-            self.default_value.swap(Arc::new(value));
+    pub fn set_default_value(&self, value: Primitive) {
+        if let ValueType::Primitive(r#type) = self.r#type {
+            if r#type == value.r#type() {
+                self.default_value.swap(Arc::new(value));
+            }
         }
     }
 
     pub fn reset_value(&self) {
-        self.set_value(self.default_value.load().clone())
+        match self.r#type {
+            ValueType::Primitive(_) => self
+                .value
+                .swap(Arc::new(self.default_value.load().as_ref().clone().into())),
+            ValueType::List(_) => Arc::new(self.r#type.into()),
+        };
     }
 
     pub fn connect_output(&self, output: &Arc<DataOutput>) {
@@ -70,12 +88,12 @@ pub struct ExecInput {
 }
 
 impl ExecInput {
-    pub fn new(name: String, node: &Arc<Node>) -> Self {
-        Self {
+    pub fn new(name: String, node: &Arc<Node>) -> Input {
+        Input::Exec(Arc::new(Self {
             name,
             node: Arc::downgrade(node),
             connected_output: Mutex::new(Weak::new()),
-        }
+        }))
     }
 
     pub fn connect_output(&self, output: &Arc<ExecOutput>) {
@@ -119,19 +137,21 @@ impl Input {
 
 pub struct DataOutput {
     pub name: String,
+    pub r#type: ValueType,
     pub value: ArcSwap<Value>,
     pub node: Weak<Node>,
     pub connected_inputs: Mutex<PtrWeakHashSet<Weak<DataInput>>>,
 }
 
 impl DataOutput {
-    pub fn new(name: String, value: Value, node: &Arc<Node>) -> Self {
-        Self {
+    pub fn new(name: String, r#type: ValueType, value: Value, node: &Arc<Node>) -> Output {
+        Output::Data(Arc::new(Self {
             name,
+            r#type,
             value: ArcSwap::from_pointee(value),
             node: Arc::downgrade(node),
             connected_inputs: Mutex::new(PtrWeakHashSet::new()),
-        }
+        }))
     }
 
     pub fn set_value(&self, value: Value) {
@@ -153,15 +173,17 @@ impl DataOutput {
 
 pub struct ExecOutput {
     pub name: String,
+    pub node: Weak<Node>,
     pub connected_input: Mutex<Weak<ExecInput>>,
 }
 
 impl ExecOutput {
-    pub fn new(name: String) -> Self {
-        Self {
+    pub fn new(name: String, node: &Arc<Node>) -> Output {
+        Output::Exec(Arc::new(Self {
             name,
+            node: Arc::downgrade(node),
             connected_input: Mutex::new(Weak::new()),
-        }
+        }))
     }
 
     pub fn connect_input(&self, input: &Arc<ExecInput>) {

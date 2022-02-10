@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import clsx from "clsx";
 
 import { Node } from "./Node";
@@ -18,7 +18,12 @@ export const Graph = observer(() => {
 
   const graphRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const bounds = graphRef.current?.getBoundingClientRect()!;
+    UI.setGraphOffset({
+      x: bounds.left,
+      y: bounds.top,
+    });
     let lastScale = 1;
     const listener = (e: any) => {
       let scale = e.scale;
@@ -108,8 +113,8 @@ export const Graph = observer(() => {
                 if (UI.mouseDragLocation) UI.setMouseDragLocation();
                 else
                   UI.setSchemaMenuPosition({
-                    x: e.clientX,
-                    y: e.clientY,
+                    x: e.clientX - UI.graphOffset.x,
+                    y: e.clientY - UI.graphOffset.y,
                   });
               }
               setPan(PanState.None);
@@ -117,9 +122,9 @@ export const Graph = observer(() => {
           }
         }}
         onMouseDown={(e) => {
-          UI.setSchemaMenuPosition();
           switch (e.button) {
             case 0:
+              UI.setSchemaMenuPosition();
               UI.setSelectedNode();
               break;
             case 2:
@@ -137,6 +142,8 @@ export const Graph = observer(() => {
         onMouseMove={(e) => {
           if (pan === PanState.None) return;
           if (pan === PanState.Waiting) setPan(PanState.Active);
+
+          UI.setSchemaMenuPosition();
 
           UI.setTranslate({
             x:

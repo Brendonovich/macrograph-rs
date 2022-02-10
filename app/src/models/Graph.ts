@@ -10,7 +10,7 @@ import {
   Node,
   NodeSchema,
 } from ".";
-import { pinsCanConnect, send } from "~/utils";
+import { pinsCanConnect, send, action, debouncedAction } from "~/utils";
 
 interface Args extends RawGraph {
   core: Core;
@@ -37,6 +37,19 @@ export class Graph {
       }),
       {}
     );
+
+    data.nodes.forEach((n) => {
+      n.inputs.forEach((i) => {
+        if (!i.connection) return;
+
+        const output = this.nodes[i.connection.node].output(i.connection.io)!;
+        const input = this.nodes[n.id].input(i.name);
+        
+        if (!output || !input) return;
+
+        this.connectPins(output, input, false);
+      });
+    });
   }
 
   addNode(node: Node) {
@@ -45,17 +58,20 @@ export class Graph {
 
   async connectPins(
     output: DataOutput | ExecOutput,
-    input: DataInput | ExecInput
+    input: DataInput | ExecInput,
+    _send = true
   ) {
-    if (!pinsCanConnect(output, input)) return;
+    if (_send) {
+      if (!pinsCanConnect(output, input)) return;
 
-    await send("ConnectIO", {
-      graph: this.id,
-      output_node: output.node.id,
-      output: output.name,
-      input_node: input.node.id,
-      input: input.name,
-    });
+      await send("ConnectIO", {
+        graph: this.id,
+        output_node: output.node.id,
+        output: output.name,
+        input_node: input.node.id,
+        input: input.name,
+      });
+    }
 
     runInAction(() => {
       if (output instanceof DataOutput) {
@@ -81,23 +97,25 @@ export class Graph {
     });
   }
 
-  async createNode(schema: NodeSchema, position: Position) {
-    const res = await send("CreateNode", {
-      graph: this.id,
-      package: schema.package.name,
-      schema: schema.name,
-      position,
-    });
-
-    runInAction(() => {
-      const node = new Node({
-        ...res,
-        graph: this,
-        schema,
+  createNode(schema: NodeSchema, position: Position) {
+    action({
+      request: "CreateNode",
+      data: {
+        graph: this.id,
+        package: schema.package.name,
+        schema: schema.name,
         position,
-      });
+      },
+      run: (data) => {
+        const node = new Node({
+          ...data,
+          graph: this,
+          schema,
+          position,
+        });
 
-      this.addNode(node);
+        this.addNode(node);
+      },
     });
   }
 
@@ -114,6 +132,20 @@ export class Graph {
       node.outputs.forEach((o) => o.disconnect(false));
 
       delete this.nodes[id];
+    });
+  }
+
+  async rename(name: string) {
+    this.name = name;
+
+    debouncedAction({
+      request: "RenameGraph",
+      data: {
+        id: this.id,
+        name,
+      },
+      timeout: 100,
+      key: `${this.id}`,
     });
   }
 }

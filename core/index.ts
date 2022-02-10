@@ -8,4 +8,4 @@ export * from "./bindings/Package";
 export * from "./bindings/Position";
 export * from "./bindings/Request";
 export * from "./bindings/Response";
-export * from "./bindings/Value";
+export * from "./package-api";

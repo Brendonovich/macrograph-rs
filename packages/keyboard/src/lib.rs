@@ -3,7 +3,7 @@ pub mod key;
 pub mod key_event;
 mod types;
 
-use engine::{run, EngineInitialState};
+use engine::run;
 
 use key_event::KeyEvent;
 use macrograph_package_api::{engine::EngineConfig, fire_fn, package::Package, run_fn};
@@ -51,10 +51,10 @@ pub fn create_package() -> Package {
                 s.exec_output(PRESSED);
                 s.exec_output(RELEASED);
 
-                s.data_output(SHIFT, false.into());
-                s.data_output(CTRL, false.into());
-                s.data_output(ALT, false.into());
-                s.data_output(META, false.into());
+                s.bool_output(SHIFT);
+                s.bool_output(CTRL);
+                s.bool_output(ALT);
+                s.bool_output(META);
             },
             fire_fn!(|io, e: KeyEvent| {
                 io.set_bool(SHIFT, e.shift_pressed);

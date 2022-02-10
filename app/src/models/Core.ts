@@ -35,6 +35,17 @@ export class Core {
     });
   }
 
+  async createGraph() {
+    const graph = await send("CreateGraph");
+    return runInAction(() => {
+      return this.graphs[graph.id] = new Graph({
+        core: this,
+        nodes: [],
+        ...graph,
+      })
+    });
+  }
+
   schema(pkg: string, name: string) {
     return this.packages.find((p) => p.name === pkg)?.schema(name);
   }

@@ -7,10 +7,21 @@ pub fn create_package() -> Package {
     package.add_exec_schema(
         "Print",
         |s| {
-            s.data_input("Value", "".into());
+            s.string_input("Value");
         },
-        exec_fn!(|n, _ctx| async {
-            println!("Print: {}", n.get_string("Value").unwrap());
+        exec_fn!(|n, _ctx| {
+            n.get_string("Value").map(|v| println!("Print: {}", v));
+        }),
+    );
+
+    package.add_exec_schema(
+        "Print List",
+        |io| {
+            io.list_input::<String>("Value");
+        },
+        exec_fn!(|io, _ctx| {
+            io.get_list::<String>("Value")
+                .map(|v| println!("Print: {:?}", v.values.lock().unwrap()));
         }),
     );
 
