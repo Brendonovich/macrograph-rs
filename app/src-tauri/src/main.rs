@@ -3,9 +3,12 @@
   windows_subsystem = "windows"
 )]
 
+pub mod menu;
+
 use std::env;
 use std::path::Path;
 
+use menu::create_menu;
 use tauri::Manager;
 
 use macrograph::api::{Request, Response};
@@ -49,6 +52,7 @@ async fn main() {
   });
 
   tauri::Builder::default()
+    .menu(create_menu())
     .manage(controller)
     .invoke_handler(tauri::generate_handler![core_request])
     .run(tauri::generate_context!())
