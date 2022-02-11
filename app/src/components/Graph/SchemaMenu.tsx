@@ -38,52 +38,88 @@ export const SchemaMenu: FC<Props> = ({ onSchemaClicked, position }) => {
 
   const [state] = useState(new SchemaMenuState());
 
+  const [search, setSearch] = useState("");
+  const lowercaseSearchTokens = search
+    .toLowerCase()
+    .split(" ")
+    .filter((s) => s !== "");
+
   return (
     <Observer>
       {() => (
         <div
-          className="bg-neutral-900 border-white text-white border absolute z-10 w-80 h-[30rem] rounded-md shadow-md overflow-hidden text-sm"
+          className="flex flex-col bg-neutral-900 border-white text-white border absolute z-10 w-80 h-[30rem] rounded-md shadow-md overflow-hidden text-sm"
           style={{
             left: position.x - 20,
             top: position.y - 20,
           }}
         >
-          <div className="p-2 overflow-auto h-full">
-            {core.packages.map((p) => {
-              let open = state.openPackages.has(p);
+          <div className="p-2">
+            <input
+              onChange={(e) => setSearch(e.target.value)}
+              className="text-black w-full px-2 py-0.5 rounded"
+              autoFocus
+              placeholder="Search Nodes..."
+              autoComplete="false"
+              autoCapitalize="false"
+              autoCorrect="false"
+              spellCheck="false"
+            />
+          </div>
+          <div className="p-2 pt-0 flex-1 overflow-auto">
+            <div className="">
+              {core.packages.map((p) => {
+                let open = state.openPackages.has(p) || search !== "";
 
-              return (
-                <div key={p.name}>
-                  <button
-                    className="px-2 py-0.5 flex flex-row items-center space-x-2 hover:bg-neutral-700 min-w-full text-left rounded-md"
-                    onClick={() => state.togglePackage(p)}
-                  >
-                    <div className="w-2">{open ? "v" : ">"}</div>
-                    <span>{p.name}</span>
-                  </button>
-                  {open && (
-                    <div className="pl-4">
-                      {p.schemas.map((s) => (
-                        <div key={s.name}>
-                          <button
-                            className="px-2 py-0.5 flex flex-row items-center space-x-2 whitespace-nowrap min-w-full text-left hover:bg-neutral-700 rounded-lg"
-                            onClick={() => onSchemaClicked(s)}
-                          >
-                            <div
-                              className={clsx(
-                                "h-3 w-3 rounded-full",
-                                TypeIndicatorColours[s.type]
-                              )}
-                            />
-                            <span>{s.name}</span>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                const lowercasePackageName = p.name.toLowerCase();
+
+                const leftoverSearchTokens = lowercaseSearchTokens.filter(
+                  (s) => !lowercasePackageName.includes(s)
+                );
+
+                let filteredSchemas = p.schemas.filter((s) => {
+                  let lowercaseSchemaName = s.name.toLowerCase();
+
+                  return leftoverSearchTokens.every((t) =>
+                    lowercaseSchemaName.includes(t)
+                  );
+                });
+
+                if (filteredSchemas.length === 0) return null;
+
+                return (
+                  <div key={p.name}>
+                    <button
+                      className="px-2 py-0.5 flex flex-row items-center space-x-2 hover:bg-neutral-700 min-w-full text-left rounded-md"
+                      onClick={() => state.togglePackage(p)}
+                    >
+                      <div className="w-2">{open ? "v" : ">"}</div>
+                      <span>{p.name}</span>
+                    </button>
+                    {open && (
+                      <div className="pl-4">
+                        {filteredSchemas.map((s) => (
+                          <div key={s.name}>
+                            <button
+                              className="px-2 py-0.5 flex flex-row items-center space-x-2 whitespace-nowrap min-w-full text-left hover:bg-neutral-700 rounded-lg"
+                              onClick={() => onSchemaClicked(s)}
+                            >
+                              <div
+                                className={clsx(
+                                  "h-3 w-3 rounded-full",
+                                  TypeIndicatorColours[s.type]
+                                )}
+                              />
+                              <span>{s.name}</span>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

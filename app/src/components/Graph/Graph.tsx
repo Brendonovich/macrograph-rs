@@ -58,7 +58,7 @@ export const Graph = observer(() => {
 
   return (
     <div
-      className={clsx("w-full h-full relative overflow-hidden bg-gray-graph")}
+      className={clsx("flex-1 relative overflow-hidden bg-gray-graph")}
     >
       {UI.schemaMenuPosition && (
         <SchemaMenu

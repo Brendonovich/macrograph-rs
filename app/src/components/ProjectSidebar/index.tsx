@@ -16,7 +16,7 @@ export const GraphList = observer<Props>(
     const core = useCore();
 
     return (
-      <div className="flex flex-col w-80 bg-neutral-600 shadow-2xl">
+      <div className="flex flex-col w-64 bg-neutral-600 shadow-2xl">
         <div className="flex flex-row bg-neutral-900 text-white px-2 font-medium shadow">
           <div className="flex-1 py-1">Graphs</div>
           <button

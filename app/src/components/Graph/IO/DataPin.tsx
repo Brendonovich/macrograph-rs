@@ -34,6 +34,7 @@ interface Props {
 
 export const DataPin: FC<Props> = ({ pin }) => {
   let type: PrimitiveType;
+  
   let isArray = false;
   if (pin.type.variant === "primitive") {
     type = pin.type.value;
@@ -57,7 +58,7 @@ export const DataPin: FC<Props> = ({ pin }) => {
           }}
           className={clsx(
             `w-3.5 h-3.5 border-2`,
-            !isArray && "rounded-full",
+            isArray ? "rounded-sm" : "rounded-full",
             pin.connected || active ? colourClass.active : colourClass.base
           )}
         />
