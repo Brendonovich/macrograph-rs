@@ -4,6 +4,7 @@ pub static CREATE_SCENE: &str = "Create Scene";
 pub static REMOVE_SCENE: &str = "Remove Scene";
 pub static SET_SCENE_NAME: &str = "Set Scene Name";
 pub static GET_SCENE_LIST: &str = "Get Scene List";
+pub static GET_CURRENT_SCENE: &str = "Get Current Scene";
 
 pub static SCENE_CREATED: &str = "Scene Created";
 pub static SCENE_REMOVED: &str = "Scene Removed";

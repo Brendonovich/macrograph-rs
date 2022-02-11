@@ -8,7 +8,11 @@ pub fn create_streaming_schemas(package: &mut Package) {
         |io| {
             io.bool_output("Streaming");
         },
-        exec_fn!(|_io, ctx| ctx.send(Request::ToggleStream)), // TODO
+        exec_fn!(|io, ctx| async {
+            ctx.invoke(Request::ToggleStream)
+                .await
+                .map(|streaming: bool| io.set_bool("Streaming", streaming));
+        }),
     );
 
     package.add_exec_schema(

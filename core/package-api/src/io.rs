@@ -20,7 +20,7 @@ impl IOProxy {
     }
 
     #[inline]
-    pub fn set_string(&mut self, name: &str, value: &str) {
+    pub fn set_string(&mut self, name: &str, value: String) {
         self.outputs.insert(name.to_string(), value.into());
     }
 
@@ -158,7 +158,7 @@ impl BuildSchema {
     }
 
     #[inline]
-    pub fn list_output(&mut self, name: &str, r#type: ListType) {
-        self.data_output(name, r#type.into());
+    pub fn list_output<T: IntoType<PrimitiveType>>(&mut self, name: &str) {
+        self.data_output(name, ListType::Primitive(T::into_type()).into());
     }
 }

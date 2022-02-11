@@ -66,7 +66,7 @@ impl NodeSchema {
     }
 }
 
-type EngineRequestData = Box<dyn Any + Send>;
+pub type EngineRequestData = Box<dyn Any + Send>;
 
 #[derive(Debug)]
 pub enum EngineRequest {
@@ -94,11 +94,14 @@ impl ExecuteContext {
         }
     }
 
-    pub async fn invoke(&self, data: EngineRequestData) -> Option<EngineRequestData> {
+    pub async fn invoke<T: Any>(&self, data: impl Any + Send) -> Option<T> {
         if let Some(sender) = &self.sender {
             let (tx, rx) = oneshot::channel();
-            sender.send(EngineRequest::Invoke(data, tx)).unwrap();
-            Some(rx.await.unwrap())
+            sender
+                .send(EngineRequest::Invoke(Box::new(data), tx))
+                .unwrap();
+            let ret = rx.await.ok();
+            ret.and_then(|data| data.downcast::<Option<T>>().ok()).and_then(|v| *v)
         } else {
             None
         }
@@ -121,7 +124,7 @@ macro_rules! exec_fn {
 
 #[macro_export]
 macro_rules! fire_fn {
-  (|$node: ident, $event:ident: $event_type:ident| $($body:tt)*) => {{
+  (|$node: ident, $event:ident: &$event_type:ident| $($body:tt)*) => {{
     |$node, $event| {
       let $event = $event.downcast_ref::<$event_type>().unwrap();
       $($body)*

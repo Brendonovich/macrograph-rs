@@ -1,7 +1,7 @@
 use std::pin::Pin;
 
 use futures::{Stream, StreamExt};
-use macrograph_package_api::{engine::EngineContext, EngineRequest};
+use macrograph_package_api::{engine::EngineContext, EngineRequest, EngineRequestData};
 use obws::{client::ConnectConfig, events::Event, requests::EventSubscription, Client};
 use tokio::{select, time};
 
@@ -22,6 +22,8 @@ pub enum Request {
         scene_name: String,
         new_name: String,
     },
+    GetCurrentScene,
+    GetSceneList,
     GetSceneItemID {
         scene_name: String,
         source_name: String,
@@ -176,15 +178,9 @@ async fn handle_request(client: &mut Client, request: EngineRequest) {
                             preview,
                         } => {
                             if preview {
-                                client
-                                    .scenes()
-                                    .set_current_preview_scene(&scene_name)
-                                    .await;
+                                client.scenes().set_current_preview_scene(&scene_name).await;
                             } else {
-                                client
-                                    .scenes()
-                                    .set_current_program_scene(&scene_name)
-                                    .await;
+                                client.scenes().set_current_program_scene(&scene_name).await;
                             }
                         }
                         CreateScene { scene_name } => {
@@ -197,19 +193,7 @@ async fn handle_request(client: &mut Client, request: EngineRequest) {
                             scene_name,
                             new_name,
                         } => {
-                            client
-                                .scenes()
-                                .set_scene_name(&scene_name, &new_name)
-                                .await;
-                        }
-                        GetSceneItemID {
-                            scene_name,
-                            source_name,
-                        } => {
-                            client
-                                .scene_items()
-                                .get_scene_item_id(&scene_name, &source_name)
-                                .await; // TODO
+                            client.scenes().set_scene_name(&scene_name, &new_name).await;
                         }
                         CreateSceneItem {
                             scene_name,
@@ -234,16 +218,6 @@ async fn handle_request(client: &mut Client, request: EngineRequest) {
                                 .remove_scene_item(&scene_name, item_id)
                                 .await; // TODO
                         }
-                        GetSceneItemEnabled {
-                            scene_name,
-                            item_id,
-                        } => {
-                            client
-                                .scene_items()
-                                .get_scene_item_enabled(&scene_name, item_id)
-                                .await
-                                .unwrap(); // TODO
-                        }
                         SetSceneItemEnabled {
                             scene_name,
                             item_id: scene_item_id,
@@ -256,15 +230,6 @@ async fn handle_request(client: &mut Client, request: EngineRequest) {
                                     scene_item_id,
                                     scene_item_enabled: enabled,
                                 })
-                                .await; // TODO
-                        }
-                        GetSceneItemLocked {
-                            scene_name,
-                            item_id,
-                        } => {
-                            client
-                                .scene_items()
-                                .get_scene_item_locked(&scene_name, item_id)
                                 .await; // TODO
                         }
                         SetSceneItemLocked {
@@ -281,15 +246,6 @@ async fn handle_request(client: &mut Client, request: EngineRequest) {
                                 })
                                 .await; // TODO
                         }
-                        GetSceneItemIndex {
-                            scene_name,
-                            item_id,
-                        } => {
-                            client
-                                .scene_items()
-                                .get_scene_item_index(&scene_name, item_id)
-                                .await; // TODO
-                        }
                         SetSceneItemIndex {
                             scene_name,
                             item_id: scene_item_id,
@@ -304,9 +260,6 @@ async fn handle_request(client: &mut Client, request: EngineRequest) {
                                 })
                                 .await; // TODO
                         }
-                        ToggleStream => {
-                            client.streaming().toggle_stream().await; // TODO
-                        }
                         StartStream => {
                             client.streaming().start_stream().await;
                         }
@@ -319,6 +272,72 @@ async fn handle_request(client: &mut Client, request: EngineRequest) {
                 Err(data) => {}
             };
         }
-        _ => {}
+        EngineRequest::Invoke(data, ret_sender) => {
+            let _data = match data.downcast::<Request>() {
+                Ok(r) => {
+                    use Request::*;
+
+                    let ret: EngineRequestData = match *r {
+                        GetSceneList => {
+                            Box::new(client.scenes().get_scene_list().await.ok().map(|s| {
+                                s.scenes
+                                    .into_iter()
+                                    .map(|s| s.scene_name)
+                                    .collect::<Vec<String>>()
+                            }))
+                        }
+                        GetSceneItemEnabled {
+                            scene_name,
+                            item_id,
+                        } => Box::new(
+                            client
+                                .scene_items()
+                                .get_scene_item_enabled(&scene_name, item_id)
+                                .await
+                                .ok(),
+                        ),
+                        GetSceneItemLocked {
+                            scene_name,
+                            item_id,
+                        } => Box::new(
+                            client
+                                .scene_items()
+                                .get_scene_item_locked(&scene_name, item_id)
+                                .await
+                                .ok(),
+                        ),
+                        GetSceneItemIndex {
+                            scene_name,
+                            item_id,
+                        } => Box::new(
+                            client
+                                .scene_items()
+                                .get_scene_item_index(&scene_name, item_id)
+                                .await
+                                .ok(),
+                        ),
+                        GetSceneItemID {
+                            scene_name,
+                            source_name,
+                        } => Box::new(
+                            client
+                                .scene_items()
+                                .get_scene_item_id(&scene_name, &source_name)
+                                .await
+                                .ok()
+                                .map(|i| i as i32),
+                        ),
+                        ToggleStream => Box::new(client.streaming().toggle_stream().await.ok()),
+                        GetCurrentScene => {
+                            Box::new(client.scenes().get_current_program_scene().await.ok())
+                        }
+                        _ => Box::new(None as Option<bool>),
+                    };
+
+                    ret_sender.send(ret);
+                }
+                Err(data) => {}
+            };
+        }
     }
 }

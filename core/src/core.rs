@@ -389,7 +389,7 @@ impl Core {
 
             let futures: Vec<_> = nodes
                 .iter()
-                .map(|node| self.fire_node(node.graph_id, node.id, &event.data))
+                .map(|node| self.fire_node(node.graph_id, node.id, &*event.data))
                 .collect();
 
             futures::future::join_all(futures).await;
@@ -446,12 +446,7 @@ impl Core {
         res
     }
 
-    pub(crate) async fn fire_node(
-        &self,
-        graph: i32,
-        node_id: i32,
-        data: &Box<dyn Any + Send + Sync>,
-    ) {
+    pub(crate) async fn fire_node(&self, graph: i32, node_id: i32, data: &(dyn Any + Sync)) {
         let node = self.graph(graph).unwrap().nodes.get(&node_id).unwrap();
 
         let fire = match ***node.schema {
@@ -462,7 +457,7 @@ impl Core {
         let mut io_data = node.get_io_data();
 
         let mut target_output_mut =
-            (fire)(&mut io_data, data.as_ref()).and_then(|id| node.find_exec_output(id));
+            (fire)(&mut io_data, data).and_then(|id| node.find_exec_output(id));
 
         node.parse_io_data(io_data);
 

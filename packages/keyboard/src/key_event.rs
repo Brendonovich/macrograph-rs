@@ -1,6 +1,6 @@
 use super::key::Key;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct KeyEvent {
     pub key: Key,
     pub pressed: bool,

@@ -56,7 +56,7 @@ pub fn create_package() -> Package {
                 s.bool_output(ALT);
                 s.bool_output(META);
             },
-            fire_fn!(|io, e: KeyEvent| {
+            fire_fn!(|io, e: &KeyEvent| {
                 io.set_bool(SHIFT, e.shift_pressed);
                 io.set_bool(CTRL, e.ctrl_pressed);
                 io.set_bool(ALT, e.alt_pressed);
